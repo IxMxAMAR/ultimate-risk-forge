@@ -1,0 +1,9 @@
+node_modules/
+dist/
+coverage/
+qa-shots/
+*.log
+.DS_Store
+
+# local working docs
+docs/
