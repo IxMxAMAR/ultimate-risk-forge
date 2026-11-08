@@ -12,7 +12,7 @@ import { conditions, fallback, FIX_TEXT, howEstimated, letter } from './template
 export interface ReportModel {
   header: { title: string; subtitle: string; caseId: string; date: string; analyst: string; rules: string; status: 'Decided' | 'Draft'; data: 'Fictional (Forge)' };
   recommendation: { label: string; release: Cents; keep: Cents; reviewDate: string; confidence: 'high' | 'medium'; override: null | { suggested: string; reason: string } };
-  findings: { confirmed: Flag[]; dismissed: Flag[] };
+  findings: { confirmed: Flag[]; dismissed: Flag[]; toReview: Flag[] };
   money: { rows: ExposureRow[]; low: Cents; high: Cents; keep: Cents; held: Cents; covers: boolean; bufferPct: number; howEstimated: string };
   conditions: string[]; fallback: string; message: string;
   fix: { text: string; affected: number };
@@ -44,7 +44,7 @@ export function buildReport(v: CaseView, cs: CaseState, analyst: string, rules: 
       confidence: v.flags.some(f => f.state === 'raised') ? 'medium' : 'high',
       override: overridden ? { suggested: suggestion.summary, reason: cs.overrideReason } : null,
     },
-    findings: { confirmed: v.flags.filter(f => f.state === 'confirmed'), dismissed: v.flags.filter(f => f.state === 'dismissed') },
+    findings: { confirmed: v.flags.filter(f => f.state === 'confirmed'), dismissed: v.flags.filter(f => f.state === 'dismissed'), toReview: v.flags.filter(f => f.state === 'raised') },
     money: {
       rows: exposure.rows, low: exposure.low, high: exposure.high, keep: d.keep, held,
       ...coverage(d.keep, exposure.high), howEstimated: howEstimated(v, rules),

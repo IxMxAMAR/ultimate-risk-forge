@@ -29,7 +29,7 @@ export function exposure(s: DisputeStats, rules: Ruleset): Exposure {
     {
       key: 'new',
       label: `New disputes on ${monthLabel(first)}–${monthLabel(last)} sales`,
-      detail: `${s.immaturePayments} payments × ${pct(lowRate)}–${pct(highRate)} ≈ ${expectedLow}–${expectedHigh} disputes × ${formatMoney(s.avgJudgedDisputeAmount)} average`,
+      detail: `${s.immaturePayments.toLocaleString('en-US')} payments × ${pct(lowRate)}–${pct(highRate)} ≈ ${expectedLow}–${expectedHigh} disputes × ${formatMoney(s.avgJudgedDisputeAmount)} average`,
       low: expectedLow * s.avgJudgedDisputeAmount, high: expectedHigh * s.avgJudgedDisputeAmount,
     },
     { key: 'fees', label: 'Dispute fees', detail: '(assumed $15 each)', low: expectedLow * rules.disputeFeeAssumed, high: expectedHigh * rules.disputeFeeAssumed },

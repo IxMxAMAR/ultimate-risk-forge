@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { activeOf, useApp } from '../../app/AppContext';
 import type { Flag, Severity } from '../../domain/types';
 import { Icon } from '../Icon';
@@ -35,6 +35,13 @@ export function FlagsPanel() {
   const flags = view?.flags ?? [];
   const selected = flags.find(f => f.id === state.selectedFlagId);
   const now = () => new Date().toISOString();
+
+  // A case opens with its first flag still to review selected, so the evidence highlight shows at once.
+  useEffect(() => {
+    if (state.selectedFlagId !== null) return;
+    const first = flags.find(f => f.state === 'raised');
+    if (first) dispatch({ type: 'select-flag', id: first.id });
+  }, [state.selectedFlagId, flags, dispatch]);
 
   const setFlagState = (f: Flag, next: Flag['state']) => dispatch({ type: 'set-flag-state', id: f.id, state: next, title: f.title, now: now() });
   const showEvidence = (f: Flag) => {
@@ -81,7 +88,7 @@ export function FlagsPanel() {
                 {f.state !== 'raised' && <button className="btn btn-ghost btn-sm" onClick={() => setFlagState(f, 'raised')}>Undo</button>}
               </div>
               <div className="title"><button aria-pressed={sel} onClick={() => dispatch({ type: 'select-flag', id: f.id })}>{f.title}</button></div>
-              {sel && f.why && <div className="why">{f.why}</div>}
+              {f.why && <div className="why">{f.why}</div>}
               {sel && f.state === 'raised' && (
                 <div className="acts">
                   <button className="btn btn-ghost btn-sm yes" onClick={() => setFlagState(f, 'confirmed')}><Icon name="check" />Confirm</button>

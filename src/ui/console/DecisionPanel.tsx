@@ -13,6 +13,12 @@ import { Icon } from '../Icon';
 import { useShortcuts } from '../useShortcuts';
 
 const ACTIONS: ActionKind[] = ['approve', 'approve-smaller-hold', 'partial-release', 'deny', 'hold-payouts', 'refund-buyers', 'block', 'escalate'];
+// The suggestion box takes its colour from how hard the action bites.
+const TONE: Record<ActionKind, 'crit' | 'high' | 'ok'> = {
+  deny: 'crit', block: 'crit', escalate: 'crit',
+  'partial-release': 'high', 'approve-smaller-hold': 'high', 'hold-payouts': 'high', 'refund-buyers': 'high',
+  approve: 'ok',
+};
 const HELD_IN_FULL: ActionKind[] = ['deny', 'hold-payouts', 'escalate', 'block', 'refund-buyers'];
 
 // A partial hold between 0 and `held`: the analyst's own keep, else half the hold to the nearest $1,000 (or to the cent when that reaches 0 or `held`).
@@ -73,17 +79,17 @@ export function DecisionPanel() {
   return (
     <div className="decision">
       <div className="label">Suggested decision</div>
-      <div className={`sugg${hidden ? ' hidden-sugg' : ''}`}>
+      <div className={`sugg ${hidden ? 'hidden-sugg' : TONE[suggestion.action]}`}>
         {hidden
           ? <div><b>Hidden in practice mode — make your own call</b></div>
           : <div><b>{actionLabel(suggestion.action, trigger)}</b><small>{suggestion.basis}</small></div>}
-        <Icon name="shield" style={{ width: 20, height: 20, color: hidden ? 'var(--fg3)' : 'var(--crit-text)' }} />
+        <Icon name="shield" style={{ width: 20, height: 20, color: hidden ? 'var(--fg3)' : `var(--${TONE[suggestion.action]}-text)` }} />
       </div>
       <div className="fields">
         <div className="field"><div className="k">Hold</div>
           <div className="v">
             {unchosen ? '—' : (
-              <><span>Keep $</span><input inputMode="decimal" aria-label="Hold amount in dollars" value={holdText ?? String(shown.keep / 100)} onChange={e => setHoldText(e.target.value)} onBlur={commitHold} onKeyDown={e => { if (e.key === 'Enter') commitHold(); }} /></>
+              <><span>Keep</span><span>$</span><input inputMode="decimal" aria-label="Hold amount in dollars" value={holdText ?? (shown.keep / 100).toLocaleString('en-US', { maximumFractionDigits: 2 })} onFocus={() => setHoldText(String(shown.keep / 100))} onChange={e => setHoldText(e.target.value)} onBlur={commitHold} onKeyDown={e => { if (e.key === 'Enter') commitHold(); }} /></>
             )}
           </div>
         </div>

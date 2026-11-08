@@ -14,10 +14,11 @@ export const hhmm = (ts: string): string => ts.slice(11, 16);
 
 function Finding({ flag, last }: { flag: Flag; last?: boolean }) {
   const dismissed = flag.state === 'dismissed';
+  const raised = flag.state === 'raised';
   const badge = BADGE[flag.severity];
   return (
     <div className={`find${dismissed ? ' is-dismissed' : last ? ' last' : ''}`}>
-      {dismissed ? <span className="pc off">DISMISSED</span> : <span className={`pc ${badge.cls}`}><Icon name={badge.icon} />{badge.word}</span>}
+      {dismissed || raised ? <span className="pc off">{dismissed ? 'DISMISSED' : 'TO REVIEW'}</span> : <span className={`pc ${badge.cls}`}><Icon name={badge.icon} />{badge.word}</span>}
       <b>{flag.title}</b>
       <p>{flag.note === '' ? flag.why : <>{flag.why} Analyst note: {flag.note}</>}</p>
     </div>
@@ -86,6 +87,13 @@ export function Paper({ v, cs, report, hidden }: { v: CaseView; cs: CaseState; r
           <div className="findings">
             {findings.confirmed.map((f, i) => <Finding key={f.id} flag={f} last={i === findings.confirmed.length - 1} />)}
             {findings.dismissed.map(f => <Finding key={f.id} flag={f} />)}
+            {findings.toReview.length > 0 && (
+              <>
+                <h4 className="to-review">Still to review ({findings.toReview.length})</h4>
+                {findings.toReview.map((f, i) => <Finding key={f.id} flag={f} last={i === findings.toReview.length - 1} />)}
+                <p className="to-review-note">Confirm or dismiss these in the console.</p>
+              </>
+            )}
           </div>
         </section>
 

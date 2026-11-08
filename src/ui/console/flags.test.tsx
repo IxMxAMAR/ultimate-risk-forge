@@ -34,13 +34,23 @@ afterEach(() => {
 });
 
 describe('flags panel', () => {
+  it('opens with the first raised flag selected and every card showing why it matters', async () => {
+    await open();
+    await waitFor(() => expect(document.querySelector('.flags .flag.sel')).not.toBeNull());
+    const flags = viewOf().flags;
+    const cards = document.querySelectorAll('.flags .flag');
+    expect(cards[0]).toHaveAttribute('aria-current', 'true');
+    expect(cards[1]).not.toHaveAttribute('aria-current');
+    for (const [i, f] of flags.entries()) expect(within(cards[i] as HTMLElement).getByText(f.why)).toBeInTheDocument();
+  });
+
   it('J then C confirms the first flag and logs it; C typed in the note does not confirm', async () => {
     const user = userEvent.setup();
     await open();
     const first = viewOf().flags[0]!;
     const log = screen.getByRole('region', { name: 'Activity log' });
     expect(within(log).getByText('No activity yet')).toBeInTheDocument();
-    await user.keyboard('j');
+    await waitFor(() => expect(document.querySelector('.flags .flag.sel')).not.toBeNull());
     await user.keyboard('c');
     expect(await within(log).findByText(new RegExp(`confirmed “${first.title}”`))).toBeInTheDocument();
     expect(within(log).getByText('now')).toBeInTheDocument();
@@ -130,6 +140,16 @@ describe('flags panel', () => {
 });
 
 describe('decision panel', () => {
+  it('colours the suggestion by action and shows the hold on one line with thousands separators', async () => {
+    await open();
+    const sugg = viewOf().suggestion;
+    const tone = { deny: 'crit', block: 'crit', escalate: 'crit', approve: 'ok' }[sugg.action as string] ?? 'high';
+    expect(document.querySelector('.sugg')).toHaveClass(tone);
+    const hold = screen.getByRole('textbox', { name: 'Hold amount in dollars' });
+    expect(hold).toHaveValue((sugg.keep / 100).toLocaleString('en-US'));
+    expect(hold.closest('.v')).toHaveTextContent(/Keep\s*\$/);
+  });
+
   it('requires a reason when the chosen action differs from the suggestion', async () => {
     const user = userEvent.setup();
     await open();
@@ -182,7 +202,7 @@ describe('decision panel', () => {
     await user.type(hold, '-100');
     await user.tab();
     expect(hold).toHaveValue('0');
-    expect(hold.closest('.v')).toHaveTextContent('Keep $');
+    expect(hold.closest('.v')).toHaveTextContent(/Keep\s*\$/);
     await user.click(screen.getByRole('button', { name: 'Preview message to seller' }));
     expect(screen.getByRole('region', { name: 'Message to seller' })).not.toBeEmptyDOMElement();
   });
@@ -207,7 +227,7 @@ describe('decision panel', () => {
     await open(c => ({ ...c, practice: true }));
     await user.selectOptions(screen.getByRole('combobox', { name: 'Decision' }), 'partial-release');
     const held = viewOf().forged.trigger.heldAmount;
-    expect(screen.getByRole('textbox', { name: 'Hold amount in dollars' })).toHaveValue(String(Math.round(held / 2 / 100000) * 1000));
+    expect(screen.getByRole('textbox', { name: 'Hold amount in dollars' })).toHaveValue((Math.round(held / 2 / 100000) * 1000).toLocaleString('en-US'));
   });
 
   it('starts a hidden smaller hold from half the hold too', async () => {
@@ -215,7 +235,7 @@ describe('decision panel', () => {
     await open(c => ({ ...c, practice: true }));
     await user.selectOptions(screen.getByRole('combobox', { name: 'Decision' }), 'approve-smaller-hold');
     const held = viewOf().forged.trigger.heldAmount;
-    expect(screen.getByRole('textbox', { name: 'Hold amount in dollars' })).toHaveValue(String(Math.round(held / 2 / 100000) * 1000));
+    expect(screen.getByRole('textbox', { name: 'Hold amount in dollars' })).toHaveValue((Math.round(held / 2 / 100000) * 1000).toLocaleString('en-US'));
   });
 
   it('shows the suggestion once a practice case is decided', async () => {

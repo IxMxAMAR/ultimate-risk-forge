@@ -179,7 +179,11 @@ tr:last-child td{border-bottom:none}
 .act time{font-family:'Fira Code',ui-monospace,monospace;font-size:11px;color:var(--fg3)}
 .decision{border-top:1px solid var(--border);padding:14px 16px 16px;background:var(--bg)}
 .sugg{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-radius:10px;background:var(--crit-soft);border:1px solid rgba(239,68,68,.4);margin:8px 0 10px}
+.sugg.high{background:var(--high-soft);border-color:rgba(249,115,22,.4)}
+.sugg.ok{background:var(--ok-soft);border-color:rgba(34,197,94,.4)}
 .sugg b{font-size:15px;color:var(--crit-text)}
+.sugg.high b{color:var(--high-text)}
+.sugg.ok b{color:var(--ok-text)}
 .sugg small{display:block;color:var(--fg3);font-size:12px}
 .sugg.hidden-sugg{background:var(--card);border-color:var(--border-strong)}
 .sugg.hidden-sugg b{font-size:13px;color:var(--fg2)}
@@ -187,7 +191,8 @@ tr:last-child td{border-bottom:none}
 .field{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:7px 10px}
 .field .k{font-size:11px;color:var(--fg3)}
 .field .v{font-family:'Fira Code',ui-monospace,monospace;font-size:13px;font-weight:500;display:flex;align-items:center;gap:6px}
-.field .v input{width:100%;min-width:0;background:transparent;border:none;border-bottom:1px solid var(--border-strong);color:var(--fg);font:inherit;padding:0}
+.field .v{white-space:nowrap}
+.field .v input{width:10ch;flex:none;min-width:0;background:transparent;border:none;border-bottom:1px solid var(--border-strong);color:var(--fg);font:inherit;padding:0}
 .reason{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}
 .reason input{height:34px;background:var(--card);border:1px solid var(--border-strong);border-radius:8px;padding:0 10px;font-size:13px;color:var(--fg)}
 .reason small{font-size:12px;color:var(--high-text)}

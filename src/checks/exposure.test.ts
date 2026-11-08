@@ -32,7 +32,7 @@ describe('exposure', () => {
     expect(e.rows.map(r => r.key)).toEqual(['open', 'new', 'fees', 'fines']);
     expect(e.rows[0]!.label).toBe('4 disputes still open');
     expect(e.rows[1]!.label).toBe('New disputes on Sep–Oct sales');
-    expect(e.rows[1]!.detail).toBe('1490 payments × 2.3%–3.1% ≈ 34–46 disputes × $430 average');
+    expect(e.rows[1]!.detail).toBe('1,490 payments × 2.3%–3.1% ≈ 34–46 disputes × $430 average');
   });
 
   it('holds with a buffer and reports coverage', () => {

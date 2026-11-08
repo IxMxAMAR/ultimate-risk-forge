@@ -38,6 +38,14 @@ beforeEach(() => { window.location.hash = ''; });
 afterEach(() => { window.location.hash = ''; });
 
 describe('report page', () => {
+  it('lists still-raised flags under Still to review when nothing is confirmed or dismissed', async () => {
+    await open(c => ({ ...decided(c), flagStates: {} }));
+    const paper = screen.getByRole('article', { name: 'Risk assessment report' });
+    expect(within(paper).getByRole('heading', { name: /Still to review \(5\)/ })).toBeInTheDocument();
+    expect(within(paper).getAllByText('TO REVIEW')).toHaveLength(5);
+    expect(within(paper).getByText('Confirm or dismiss these in the console.')).toBeInTheDocument();
+  });
+
   it('shows the recommendation, override sentence and cover line', async () => {
     await open();
     const paper = screen.getByRole('article', { name: 'Risk assessment report' });
