@@ -3,6 +3,8 @@ import type { Store } from '../persist/db';
 import { CaseHeader } from '../ui/console/CaseHeader';
 import { CaseList } from '../ui/console/CaseList';
 import { DataTabs } from '../ui/console/DataTabs';
+import { DecisionPanel } from '../ui/console/DecisionPanel';
+import { FlagsPanel } from '../ui/console/FlagsPanel';
 import { TopBar } from '../ui/console/TopBar';
 import { DisputesTab, type DisputesMode } from '../ui/console/DisputesTab';
 import { IconSprite } from '../ui/Icon';
@@ -23,6 +25,16 @@ function Center() {
   );
 }
 
+function Side() {
+  const { state } = useApp();
+  return (
+    <aside className="side" aria-label="Flags and decision" key={state.activeCode}>
+      <FlagsPanel />
+      <DecisionPanel />
+    </aside>
+  );
+}
+
 export function App({ store }: { store?: Store }) {
   return (
     <AppProvider store={store}>
@@ -36,7 +48,7 @@ export function App({ store }: { store?: Store }) {
             <DataTabs />
           </nav>
           <Center />
-          <aside className="side" />
+          <Side />
         </div>
       </div>
     </AppProvider>
