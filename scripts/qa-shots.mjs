@@ -1,6 +1,7 @@
 import { spawn, spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { get } from 'node:http';
+import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
@@ -8,7 +9,24 @@ const PORT = 4317;
 const BASE = `http://localhost:${PORT}/`;
 const CHROME = process.env.CHROME_PATH ?? 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 const SIZES = [[2512, 1398], [1440, 960]];
-const PAGES = [['console', '#/case/VT-G24B-KD'], ['report', '#/case/VT-G24B-KD/report'], ['forge', '#/forge']];
+const READY_MS = 20_000;
+
+// A shot is taken only once the app has loaded the store, seeded the starters and drawn the screen (DevTools polling, because IndexedDB is not covered by virtual time).
+const STATE = `(() => ({
+  cases: document.querySelectorAll('button.case').length,
+  flags: document.querySelectorAll('.flags .flag').length,
+  paper: document.querySelectorAll('.paper').length,
+  dialog: document.querySelectorAll('[role="dialog"]').length,
+  rows: document.querySelectorAll('[role="dialog"] .preview .prow').length,
+  title: document.title,
+}))()`;
+const PAGES = [
+  ['console', '#/case/VT-G24B-KD', s => s.cases >= 3 && s.flags >= 1],
+  ['report', '#/case/VT-G24B-KD/report', s => s.paper > 0],
+  ['forge', '#/forge', s => s.dialog > 0 && s.rows > 0],
+];
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 const up = () => new Promise(done => {
   const req = get(BASE, res => { res.resume(); done(true); });
@@ -16,37 +34,79 @@ const up = () => new Promise(done => {
   req.setTimeout(1000, () => { req.destroy(); done(false); });
 });
 
-async function waitForServer() {
-  const end = Date.now() + 30_000;
+async function waitFor(check, ms, what) {
+  const end = Date.now() + ms;
   while (Date.now() < end) {
-    if (await up()) return;
-    await new Promise(r => setTimeout(r, 300));
+    try { const v = await check(); if (v) return v; } catch { /* not ready yet */ }
+    await sleep(250);
   }
-  throw new Error(`preview did not answer on ${BASE} within 30 s`);
+  throw new Error(`${what} not ready within ${ms / 1000} s`);
+}
+
+const freePort = () => new Promise((ok, fail) => {
+  const srv = createServer();
+  srv.on('error', fail);
+  srv.listen(0, '127.0.0.1', () => { const { port } = srv.address(); srv.close(() => ok(port)); });
+});
+
+const kill = child => { if (child && child.exitCode === null) spawnSync('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore' }); };
+
+function connect(url) {
+  const ws = new WebSocket(url);
+  let id = 0;
+  const waiting = new Map();
+  ws.onmessage = e => {
+    const m = JSON.parse(e.data);
+    const p = waiting.get(m.id);
+    if (!p) return;
+    waiting.delete(m.id);
+    if (m.error) p.fail(new Error(m.error.message)); else p.ok(m.result);
+  };
+  const opened = new Promise((ok, fail) => { ws.onopen = ok; ws.onerror = () => fail(new Error('DevTools socket failed')); });
+  const send = (method, params = {}) => new Promise((ok, fail) => { const n = ++id; waiting.set(n, { ok, fail }); ws.send(JSON.stringify({ id: n, method, params })); });
+  return { opened, send, close: () => ws.close() };
+}
+
+async function shoot(name, hash, ready, w, h) {
+  const out = resolve(`qa-shots/${name}-${w}x${h}.png`);
+  const profile = mkdtempSync(join(tmpdir(), 'rf-qa-'));
+  const port = await freePort();
+  const chrome = spawn(CHROME, ['--headless=new', '--disable-gpu', '--hide-scrollbars', `--remote-debugging-port=${port}`,
+    `--window-size=${w},${h}`, `--user-data-dir=${profile}`, '--no-first-run', 'about:blank'], { stdio: 'ignore' });
+  let page;
+  try {
+    const target = await waitFor(async () => (await (await fetch(`http://127.0.0.1:${port}/json`)).json()).find(t => t.type === 'page'), 15_000, 'Chrome');
+    page = connect(target.webSocketDebuggerUrl);
+    await page.opened;
+    await page.send('Page.enable');
+    await page.send('Emulation.setDeviceMetricsOverride', { width: w, height: h, deviceScaleFactor: 1, mobile: false });
+    await page.send('Page.navigate', { url: BASE + hash });
+    let last = null;
+    const evaluate = async () => (last = (await page.send('Runtime.evaluate', { expression: STATE, returnByValue: true })).result.value);
+    try {
+      await waitFor(async () => ready(await evaluate()), READY_MS, `${name} ${w}x${h}`);
+    } catch (e) {
+      throw new Error(`${e.message}; last state ${JSON.stringify(last)}`);
+    }
+    await sleep(300);
+    const state = await evaluate();
+    const shot = await page.send('Page.captureScreenshot', { format: 'png' });
+    writeFileSync(out, Buffer.from(shot.data, 'base64'));
+    console.log(`${out}  case rows ${state.cases}, flag cards ${state.flags}, .paper ${state.paper > 0}, dialog ${state.dialog > 0} (${state.rows} preview rows)`);
+  } finally {
+    page?.close();
+    kill(chrome);
+    await sleep(300);
+    rmSync(profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+  }
 }
 
 const preview = spawn(process.execPath, ['node_modules/vite/bin/vite.js', 'preview', '--port', String(PORT), '--strictPort'], { stdio: 'ignore' });
-let exited = false;
-preview.on('exit', () => { exited = true; });
-
 try {
-  await waitForServer();
-  if (exited) throw new Error(`port ${PORT} was already in use`);
+  await waitFor(up, 30_000, `preview on ${BASE}`);
+  if (preview.exitCode !== null) throw new Error(`port ${PORT} was already in use`);
   mkdirSync('qa-shots', { recursive: true });
-  for (const [w, h] of SIZES) {
-    for (const [name, hash] of PAGES) {
-      const out = resolve(`qa-shots/${name}-${w}x${h}.png`);
-      const profile = mkdtempSync(join(tmpdir(), 'rf-qa-'));
-      try {
-        const r = spawnSync(CHROME, ['--headless=new', '--disable-gpu', '--hide-scrollbars', '--virtual-time-budget=5000',
-          `--window-size=${w},${h}`, `--user-data-dir=${profile}`, `--screenshot=${out}`, BASE + hash], { stdio: 'ignore' });
-        if (r.status !== 0) throw new Error(`Chrome failed for ${name} ${w}x${h} (exit ${r.status})`);
-      } finally {
-        rmSync(profile, { recursive: true, force: true });
-      }
-      console.log(out);
-    }
-  }
+  for (const [w, h] of SIZES) for (const [name, hash, ready] of PAGES) await shoot(name, hash, ready, w, h);
 } finally {
-  if (!exited) spawnSync('taskkill', ['/pid', String(preview.pid), '/T', '/F'], { stdio: 'ignore' });
+  kill(preview);
 }
