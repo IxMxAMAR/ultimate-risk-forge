@@ -27,7 +27,10 @@ async function open(mutate?: (c: CaseState) => CaseState) {
 const evidenceFlag = (ids: string[]): Flag => ({ id: 'analyst-1', kind: 'analyst', severity: 'high', title: 'Watch the account age', why: 'Because.', evidence: { tab: 'disputes', ids }, state: 'raised', note: '', addedBy: 'analyst' });
 
 beforeEach(() => { window.location.hash = ''; });
-afterEach(() => { window.location.hash = ''; });
+afterEach(() => {
+  window.location.hash = '';
+  delete (Element.prototype as { scrollIntoView?: unknown }).scrollIntoView;
+});
 
 describe('flags panel', () => {
   it('J then C confirms the first flag and logs it; C typed in the note does not confirm', async () => {
@@ -79,7 +82,7 @@ describe('flags panel', () => {
 
   it('Evidence scrolls the first matching element into view', async () => {
     const scroll = vi.fn();
-    Element.prototype.scrollIntoView = scroll;
+    Object.defineProperty(Element.prototype, 'scrollIntoView', { value: scroll, configurable: true, writable: true });
     const user = userEvent.setup();
     await open(c => ({ ...c, analystFlags: [evidenceFlag(['missing', 'kpi:refund-rate'])] }));
     await user.click(screen.getByText('Watch the account age'));
@@ -98,10 +101,30 @@ describe('flags panel', () => {
     expect(lit).toEqual(['Account age', 'Growth vs prior month']);
   });
 
-  it('Ctrl+K focuses the search box', async () => {
+  it('Ctrl+K focuses the search box, also from inside another field', async () => {
     await open();
     fireEvent.keyDown(document.body, { key: 'k', ctrlKey: true });
-    expect(screen.getByRole('searchbox', { name: 'Search cases' })).toHaveFocus();
+    const search = screen.getByRole('searchbox', { name: 'Search cases' });
+    expect(search).toHaveFocus();
+    screen.getByRole('textbox', { name: 'Hold amount in dollars' }).focus();
+    fireEvent.keyDown(document.activeElement!, { key: 'k', ctrlKey: true });
+    expect(search).toHaveFocus();
+  });
+
+  it('selects a card from its title button with Enter and Space', async () => {
+    const user = userEvent.setup();
+    await open();
+    const flags = viewOf().flags;
+    const second = screen.getByRole('button', { name: flags[1]!.title });
+    expect(second).toHaveAttribute('aria-pressed', 'false');
+    second.focus();
+    await user.keyboard('{Enter}');
+    expect(second).toHaveAttribute('aria-pressed', 'true');
+    const third = screen.getByRole('button', { name: flags[2]!.title });
+    third.focus();
+    await user.keyboard(' ');
+    expect(third).toHaveAttribute('aria-pressed', 'true');
+    expect(second).toHaveAttribute('aria-pressed', 'false');
   });
 });
 
@@ -121,12 +144,42 @@ describe('decision panel', () => {
     expect(window.location.hash).toBe(`#/case/${CODE}/report`);
   });
 
+  it('logs one line for a typed hold, none for a reason edit, and no reason text without a reason', async () => {
+    const user = userEvent.setup();
+    await open();
+    const log = screen.getByRole('region', { name: 'Activity log' });
+    const lines = () => log.querySelectorAll('.act span').length;
+    const hold = screen.getByRole('textbox', { name: 'Hold amount in dollars' });
+    await user.clear(hold);
+    await user.type(hold, '1500');
+    expect(within(log).getByText('No activity yet')).toBeInTheDocument();
+    await user.tab();
+    expect(lines()).toBe(1);
+    expect(within(log).getByText(/changed the decision to .*\.$/)).not.toHaveTextContent('Reason recorded.');
+    const reason = screen.getByRole('textbox', { name: 'Reason for changing the suggestion' });
+    await user.type(reason, 'Seller sent proof');
+    await user.tab();
+    expect(lines()).toBe(1);
+  });
+
+  it('reverts an empty hold on blur and commits on Enter', async () => {
+    const user = userEvent.setup();
+    await open();
+    const hold = screen.getByRole('textbox', { name: 'Hold amount in dollars' });
+    await user.clear(hold);
+    await user.tab();
+    expect(hold).toHaveValue('0');
+    await user.type(hold, '250{Enter}');
+    expect(screen.getByRole('region', { name: 'Activity log' }).querySelectorAll('.act span')).toHaveLength(1);
+  });
+
   it('clamps a negative hold to $0 and previews the seller message', async () => {
     const user = userEvent.setup();
     await open();
     const hold = screen.getByRole('textbox', { name: 'Hold amount in dollars' });
     await user.clear(hold);
     await user.type(hold, '-100');
+    await user.tab();
     expect(hold).toHaveValue('0');
     expect(hold.closest('.v')).toHaveTextContent('Keep $');
     await user.click(screen.getByRole('button', { name: 'Preview message to seller' }));
@@ -146,6 +199,14 @@ describe('decision panel', () => {
     await user.selectOptions(screen.getByRole('combobox', { name: 'Decision' }), 'deny');
     expect(screen.getByRole('button', { name: 'Build report' })).toBeEnabled();
     expect(screen.queryByText(sug.basis)).not.toBeInTheDocument();
+  });
+
+  it('starts a hidden partial release from half the hold, not from the suggestion', async () => {
+    const user = userEvent.setup();
+    await open(c => ({ ...c, practice: true }));
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Decision' }), 'partial-release');
+    const held = viewOf().forged.trigger.heldAmount;
+    expect(screen.getByRole('textbox', { name: 'Hold amount in dollars' })).toHaveValue(String(Math.round(held / 2 / 100000) * 1000));
   });
 
   it('shows the suggestion once a practice case is decided', async () => {

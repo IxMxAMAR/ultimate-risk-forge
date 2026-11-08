@@ -80,10 +80,9 @@ export function reducer(s: AppState, a: AppAction): AppState {
         const requested = Number.isFinite(a.decision.keep) ? a.decision.keep : c.decision?.keep ?? 0;
         const keep = Math.min(a.held, Math.max(0, requested));
         const decision: Decision = { ...a.decision, keep, release: a.held - keep };
-        return {
-          ...c, decision, overrideReason: a.reason,
-          activity: log(c, s.analyst, a.now, `${s.analyst} changed the decision to ${actionLabel(decision.action, a.trigger)}. Reason recorded.`),
-        };
+        const changed = c.decision === null || c.decision.action !== decision.action || c.decision.keep !== decision.keep;
+        const line = `${s.analyst} changed the decision to ${actionLabel(decision.action, a.trigger)}.${a.reason.trim() === '' ? '' : ' Reason recorded.'}`;
+        return { ...c, decision, overrideReason: a.reason, activity: changed ? log(c, s.analyst, a.now, line) : c.activity };
       });
     case 'set-seller-message': return onActive(s, c => ({ ...c, sellerMessage: a.text }));
     case 'set-message-read': return onActive(s, c => ({ ...c, messageRead: a.read }));

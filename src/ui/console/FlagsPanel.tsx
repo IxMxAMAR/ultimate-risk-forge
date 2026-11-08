@@ -72,7 +72,7 @@ export function FlagsPanel() {
           const sel = f.id === state.selectedFlagId;
           const cls = ['flag', sel ? 'sel' : 'collapsed', f.state !== 'raised' ? f.state : ''].filter(Boolean).join(' ');
           return (
-            <article key={f.id} className={cls} aria-current={sel ? 'true' : undefined} onClick={() => dispatch({ type: 'select-flag', id: f.id })}>
+            <article key={f.id} className={cls} aria-current={sel ? 'true' : undefined}>
               <div className="top">
                 <SeverityChip level={f.severity} />
                 {f.state === 'confirmed' && <span className="state-ok"><Icon name="check" style={{ width: 13, height: 13 }} />Confirmed</span>}
@@ -80,7 +80,7 @@ export function FlagsPanel() {
                 {f.state === 'raised' && <span className="state-todo">To review</span>}
                 {f.state !== 'raised' && <button className="btn btn-ghost btn-sm" onClick={() => setFlagState(f, 'raised')}>Undo</button>}
               </div>
-              <div className="title">{f.title}</div>
+              <div className="title"><button aria-pressed={sel} onClick={() => dispatch({ type: 'select-flag', id: f.id })}>{f.title}</button></div>
               {sel && f.why && <div className="why">{f.why}</div>}
               {sel && f.state === 'raised' && (
                 <div className="acts">

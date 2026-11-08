@@ -20,13 +20,16 @@ describe('useShortcuts', () => {
     expect(onSearch).toHaveBeenCalledTimes(1);
   });
 
-  it('ignores keys typed into inputs, textareas, selects and editable elements', () => {
+  it('ignores keys typed into inputs, textareas, selects and editable elements, but not Ctrl+K', () => {
     const onJ = vi.fn();
-    const { getByLabelText, getByTestId } = render(<Harness onJ={onJ} onSearch={vi.fn()} />);
+    const onSearch = vi.fn();
+    const { getByLabelText, getByTestId } = render(<Harness onJ={onJ} onSearch={onSearch} />);
     for (const el of [getByLabelText('field'), getByLabelText('area'), getByLabelText('pick'), getByTestId('edit')]) {
       el.focus();
       fireEvent.keyDown(el, { key: 'j' });
+      fireEvent.keyDown(el, { key: 'k', ctrlKey: true });
     }
     expect(onJ).not.toHaveBeenCalled();
+    expect(onSearch).toHaveBeenCalledTimes(4);
   });
 });

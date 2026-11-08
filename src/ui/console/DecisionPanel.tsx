@@ -40,22 +40,26 @@ export function DecisionPanel() {
     setHoldText(null);
     dispatch({ type: 'set-decision', decision: { action: d.action, keep: d.keep, release: held - d.keep, reviewDate: d.reviewDate }, held, reason: why, trigger, now: new Date().toISOString() });
   };
+  // While the suggestion is hidden, the starting hold comes only from the analyst's own decision, never from the suggestion or exposure.
+  const ownKeep = (): Cents => {
+    const own = cs.decision?.keep ?? 0;
+    return own > 0 && own < held ? own : Math.round(held / 2 / 100000) * 100000 || Math.round(held / 2);
+  };
   const chooseAction = (value: string) => {
     if (value === 'suggestion') { setReason(''); commit(suggestion, ''); return; }
     const action = value as ActionKind;
     const smaller = Math.min(held, holdToKeep(exposure.high, RULES_V1));
     const keep: Cents = HELD_IN_FULL.includes(action) ? held
-      : action === 'partial-release' ? (shown.keep > 0 && shown.keep < held ? shown.keep : smaller)
+      : action === 'partial-release' ? (hidden ? ownKeep() : shown.keep > 0 && shown.keep < held ? shown.keep : smaller)
       : action === 'approve-smaller-hold' ? smaller : 0;
     commit({ action, keep, release: held - keep, reviewDate: action === 'approve' ? forged.asOf : reviewDateFrom(forged.asOf) }, reason);
   };
-  const changeHold = (text: string) => {
-    const dollars = parseFloat(text);
-    if (!Number.isFinite(dollars)) { setHoldText(text); return; }
-    const cents = Math.round(dollars * 100);
-    commit({ ...shown, keep: cents }, reason);
-    const kept = Math.min(held, Math.max(0, cents));
-    setHoldText(kept === cents && /^(0|[1-9]\d*)(\.\d{0,2})?$/.test(text) ? text : String(kept / 100));
+  const commitHold = () => {
+    const dollars = parseFloat(holdText ?? '');
+    setHoldText(null);
+    if (!Number.isFinite(dollars)) return;
+    const keep = Math.min(held, Math.max(0, Math.round(dollars * 100)));
+    if (keep !== shown.keep) commit({ ...shown, keep }, reason);
   };
   const saveReason = () => { if (cs.decision && reason !== cs.overrideReason) commit(cs.decision, reason); };
 
@@ -75,7 +79,7 @@ export function DecisionPanel() {
         <div className="field"><div className="k">Hold</div>
           <div className="v">
             {unchosen ? '—' : (
-              <><span>Keep $</span><input inputMode="decimal" aria-label="Hold amount in dollars" value={holdText ?? String(shown.keep / 100)} onChange={e => changeHold(e.target.value)} /></>
+              <><span>Keep $</span><input inputMode="decimal" aria-label="Hold amount in dollars" value={holdText ?? String(shown.keep / 100)} onChange={e => setHoldText(e.target.value)} onBlur={commitHold} onKeyDown={e => { if (e.key === 'Enter') commitHold(); }} /></>
             )}
           </div>
         </div>

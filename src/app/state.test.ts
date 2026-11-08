@@ -47,6 +47,15 @@ describe('reducer', () => {
     expect(active(decide(400_000)).activity.at(-1)!.what).toBe('Sam changed the decision to Partial release. Reason recorded.');
   });
 
+  it('logs a decision only when the action or keep changes, and mentions the reason only when there is one', () => {
+    const first = decide(400_000);
+    const reasonOnly = reducer(first, { type: 'set-decision', decision: active(first).decision!, held: 1_000_000, reason: 'new reason', trigger: 'early-release', now: NOW });
+    expect(active(reasonOnly).overrideReason).toBe('new reason');
+    expect(active(reasonOnly).activity).toHaveLength(1);
+    const noReason = reducer(first, { type: 'set-decision', decision: { action: 'deny', keep: 1_000_000, release: 0, reviewDate: 'd' }, held: 1_000_000, reason: '', trigger: 'early-release', now: NOW });
+    expect(active(noReason).activity.at(-1)!.what).toBe('Sam changed the decision to Deny early release.');
+  });
+
   it('non-finite keep falls back to the current keep', () => {
     const s = reducer(decide(300_000), { type: 'set-decision', decision: { action: 'deny', keep: NaN, release: 0, reviewDate: 'd' }, held: 1_000_000, reason: 'r', trigger: 'early-release', now: NOW });
     expect(active(s).decision).toMatchObject({ action: 'deny', keep: 300_000, release: 700_000 });
