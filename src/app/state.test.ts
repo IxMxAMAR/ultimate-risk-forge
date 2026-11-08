@@ -1,0 +1,79 @@
+import { describe, expect, it } from 'vitest';
+import { newCaseState } from '../persist/db';
+import { reducer, type AppState } from './state';
+
+const NOW = '2026-11-08T10:00:00.000Z';
+const base = (): AppState => ({
+  cases: [newCaseState('PD-009R-HF', true, NOW)], activeCode: 'PD-009R-HF', view: 'console', tab: 'overview',
+  selectedFlagId: null, forgeOpen: false, search: '', analyst: 'Sam', persistent: true,
+});
+const active = (s: AppState) => s.cases[0]!;
+const decide = (keep: number) => reducer(base(), {
+  type: 'set-decision', decision: { action: 'partial-release', keep, release: 0, reviewDate: '2026-12-08' },
+  held: 1_000_000, reason: 'why', trigger: 'early-release', now: NOW,
+});
+
+describe('reducer', () => {
+  it('logs confirm, dismiss and reopen with the analyst name', () => {
+    let s = reducer(base(), { type: 'set-flag-state', id: 'f1', state: 'confirmed', title: 'Rate hidden', now: NOW });
+    expect(active(s).flagStates.f1).toEqual({ state: 'confirmed', note: '' });
+    expect(active(s).activity.at(-1)).toEqual({ ts: NOW, who: 'Sam', what: 'Sam confirmed “Rate hidden”' });
+    s = reducer(s, { type: 'set-flag-state', id: 'f1', state: 'dismissed', title: 'Rate hidden', now: NOW });
+    expect(active(s).activity.at(-1)!.what).toBe('Sam dismissed “Rate hidden”');
+    s = reducer(s, { type: 'set-flag-state', id: 'f1', state: 'raised', title: 'Rate hidden', now: NOW });
+    expect(active(s).activity.at(-1)!.what).toBe('Sam reopened “Rate hidden”');
+  });
+
+  it('keeps the note when state changes', () => {
+    let s = reducer(base(), { type: 'set-note', id: 'f1', note: 'n' });
+    s = reducer(s, { type: 'set-flag-state', id: 'f1', state: 'confirmed', title: 'T', now: NOW });
+    expect(active(s).flagStates.f1).toEqual({ state: 'confirmed', note: 'n' });
+  });
+
+  it('adds analyst flags as confirmed with unique ids', () => {
+    const flag = { id: 'x', kind: 'analyst' as const, severity: 'high' as const, title: 'Mine', why: '', evidence: { tab: 'disputes' as const, ids: [] }, state: 'raised' as const, note: '', addedBy: 'analyst' as const };
+    let s = reducer(base(), { type: 'add-analyst-flag', flag, now: NOW });
+    s = reducer(s, { type: 'add-analyst-flag', flag, now: NOW });
+    expect(active(s).analystFlags.map(f => [f.id, f.state])).toEqual([['analyst-1', 'confirmed'], ['analyst-2', 'confirmed']]);
+    expect(active(s).activity.at(-1)!.what).toBe('Sam added a flag: “Mine”');
+  });
+
+  it('clamps keep to 0..held and derives release', () => {
+    for (const [keep, want] of [[-5, 0], [99_999_999, 1_000_000], [400_000, 400_000]] as const) {
+      const d = active(decide(keep)).decision!;
+      expect([d.keep, d.release]).toEqual([want, 1_000_000 - want]);
+    }
+    expect(active(decide(400_000)).overrideReason).toBe('why');
+    expect(active(decide(400_000)).activity.at(-1)!.what).toBe('Sam changed the decision to Partial release. Reason recorded.');
+  });
+
+  it('non-finite keep falls back to the current keep', () => {
+    const s = reducer(decide(300_000), { type: 'set-decision', decision: { action: 'deny', keep: NaN, release: 0, reviewDate: 'd' }, held: 1_000_000, reason: 'r', trigger: 'early-release', now: NOW });
+    expect(active(s).decision).toMatchObject({ action: 'deny', keep: 300_000, release: 700_000 });
+    const fresh = decide(NaN);
+    expect(active(fresh).decision!.keep).toBe(0);
+  });
+
+  it('moves flag selection and wraps', () => {
+    const ids = ['a', 'b', 'c'];
+    let s = reducer(base(), { type: 'move-flag', dir: 1, ids });
+    expect(s.selectedFlagId).toBe('a');
+    s = reducer(s, { type: 'move-flag', dir: -1, ids });
+    expect(s.selectedFlagId).toBe('c');
+    s = reducer(s, { type: 'move-flag', dir: 1, ids });
+    expect(s.selectedFlagId).toBe('a');
+    expect(reducer(base(), { type: 'move-flag', dir: -1, ids }).selectedFlagId).toBe('c');
+  });
+
+  it('mark-decided stamps the case and logs two lines', () => {
+    const s = reducer(base(), { type: 'mark-decided', now: NOW, score: null });
+    expect(active(s).decidedAt).toBe(NOW);
+    expect(active(s).activity.map(a => a.what)).toEqual(['Sam signed the report.', 'Sam marked the case decided.']);
+  });
+
+  it('opens cases and ignores unknown codes', () => {
+    const s = { ...base(), view: 'report' as const, selectedFlagId: 'a', tab: 'owners' as const };
+    expect(reducer(s, { type: 'open-case', code: 'PD-009R-HF' })).toMatchObject({ view: 'console', tab: 'disputes', selectedFlagId: null });
+    expect(reducer(s, { type: 'open-case', code: 'NOPE' })).toBe(s);
+  });
+});

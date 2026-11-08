@@ -18,6 +18,8 @@ Types live in `src/domain/types.ts` (case specs, payments, disputes, refunds, ho
 
 The forge (`src/forge`) turns a case code into a full case: `forgeCase(code)` decodes it, picks the generator and seeds it with the case seed. Available types are Hidden by growth and Surprise (Surprise draws a concrete available type from the seed XOR 0x9E3779B9 and is flagged `surprise`); other types throw "This kind of case is coming soon". The Hidden by growth generator (`generators/hiddenByGrowth.ts`) builds card payments for Jun–Oct 2026 (October volume 300 / 2,000 / 20,000 by seller size, September = October ÷ growth of 6 / 5 / 4 for easy / normal / hard, earlier months flat-ish), brand-group dispute rates tuned per difficulty on the judged months (Jun–Aug; counts are rounded; because rounding on small sellers can land under the line, Visa and Mastercard are given at least enough disputes to end over their own limit (1.5% each) — so the over-limit flags are guaranteed for any seller with 30+ payments on the brand, and calibration separately checks that medium sellers stay near the tuned rates; "other" cards run at 2.5% on easy and 2% on normal) with low so-far rates on Sep/Oct (Sep 0.8% / 0.6% / 0.4% and Oct 0.2% / 0.15% / 0.1% for easy / normal / hard; Visa is 2.7% on easy; Mastercard is 4.2% / 3.1% / 3.2% for easy / normal / hard, so medium sellers always land at or above the 3.0% excessive tier and the Mastercard flag is critical at every difficulty), refunds on about 0.6% of payments (never on disputed ones), a fixed hold of 22.5% of the last 30 days rounded up to $1,000, and the ground truth. Hard cases add an ad-campaign receipts document and treat the young-account flag as a look-alike. Seller names come from `names.ts`; `starters.ts` lists the three starter codes (easy, normal, hard).
 
+`src/app/derive.ts` turns a stored `CaseState` into a `CaseView`: the forged case, dispute stats, rule flags and exposure (computed once per code and reused), the flag list (rule flags with the analyst's states and notes merged in, then analyst-added flags) and the suggested decision from those flags.
+
 ## 5. Checks & rules
 Deterministic checks over a case that produce severity-ranked flags with supporting evidence.
 
@@ -38,6 +40,10 @@ Console view for working a case, a report view, and the Forge modal. Severity is
 
 ## 7. Persistence
 Cases and decisions are stored locally in IndexedDB; nothing leaves the browser.
+
+`src/persist/db.ts` opens the `risk-forge` database (version 1) through `idb`: a `cases` store keyed by `code` and a `settings` store (one record, default analyst name "Analyst"). A `CaseState` holds only what the analyst did (flag states and notes, analyst-added flags, decision and override reason, seller message, second reviewer, activity log, decided time, score); the case itself is re-forged from its code. If IndexedDB cannot be opened, `openStore` returns an in-memory store with `persistent: false` so the app keeps working for the session.
+
+App state lives in `src/app/state.ts`, a pure reducer over the case list, the active case, view, tab, selected flag, Forge modal, search and analyst name. Case-scoped actions only touch the active case. Every analyst action appends an activity line (confirmed, dismissed, reopened, added a flag, changed the decision, signed the report, marked decided). A decision's `keep` is clamped to 0..held and `release` is held minus keep.
 
 ## 8. Determinism & case codes
 Generators use only a seeded RNG, so a case code reproduces the same case. Generator v1 uses asOf 2026-11-08.
