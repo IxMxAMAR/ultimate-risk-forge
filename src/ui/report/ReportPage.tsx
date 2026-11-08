@@ -40,7 +40,7 @@ export function ReportPage() {
 
   return (
     <div className="main rpt">
-      <ReportRail v={view} report={report} concealed={concealed} active={active} onJump={jump} />
+      <ReportRail v={view} report={report} concealed={concealed} hidden={hidden} active={active} onJump={jump} />
       <main className="desk"><Paper v={view} cs={cs} report={report} hidden={hidden} /></main>
       <SidePanel v={view} cs={cs} report={report} hidden={hidden} />
     </div>

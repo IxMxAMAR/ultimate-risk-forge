@@ -14,7 +14,7 @@ export function scoreCase(c: ForgedCase, ruleFlags: Flag[], analystFlags: Flag[]
   const found = (kind: FlagKind): boolean => {
     const rule = ruleFlag(kind);
     if (!rule) return false;
-    return rule.state === 'confirmed' || analystFlags.some(a => a.evidence.ids.some(id => rule.evidence.ids.includes(id)));
+    return rule.state === 'confirmed' || analystFlags.some(a => a.state !== 'dismissed' && a.evidence.ids.some(id => rule.evidence.ids.includes(id)));
   };
   const titleOf = (kind: FlagKind): string => ruleFlag(kind)?.title ?? kind;
 
@@ -29,7 +29,7 @@ export function scoreCase(c: ForgedCase, ruleFlags: Flag[], analystFlags: Flag[]
     : DISMISSALS_MAX * (1 - dismissed(planted) / planted.length);
 
   const decision = acceptable.includes(d.action) ? DECISION_MAX : adjacent.includes(d.action) ? DECISION_MAX / 2 : 0;
-  const amounts = d.keep >= worst && d.keep <= c.trigger.heldAmount ? AMOUNTS_MAX : 0;
+  const amounts = d.keep >= Math.min(worst, c.trigger.heldAmount) && d.keep <= c.trigger.heldAmount ? AMOUNTS_MAX : 0;
 
   return {
     total: Math.round(flags + dismissals + decision + amounts),

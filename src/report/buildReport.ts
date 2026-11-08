@@ -47,7 +47,7 @@ export function buildReport(v: CaseView, cs: CaseState, analyst: string, rules: 
     findings: { confirmed: v.flags.filter(f => f.state === 'confirmed'), dismissed: v.flags.filter(f => f.state === 'dismissed'), toReview: v.flags.filter(f => f.state === 'raised') },
     money: {
       rows: exposure.rows, low: exposure.low, high: exposure.high, keep: d.keep, held,
-      ...coverage(d.keep, exposure.high), howEstimated: howEstimated(v, rules),
+      ...coverage(d.keep, Math.min(exposure.high, held)), howEstimated: howEstimated(v, rules),
     },
     conditions: conditions(v), fallback: fallback(d.reviewDate),
     message: cs.sellerMessage ?? sellerMessage(v, d, rules),

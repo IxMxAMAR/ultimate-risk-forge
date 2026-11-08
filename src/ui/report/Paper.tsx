@@ -10,7 +10,7 @@ const BADGE = { critical: { cls: 'crit', icon: 'oct', word: 'CRITICAL' }, high: 
 
 const RULE_LEAD = 'Proposed rule:';
 
-export const hhmm = (ts: string): string => ts.slice(11, 16);
+export const hhmm = (ts: string): string => `${ts.slice(11, 16)} UTC`;
 
 function Finding({ flag, last }: { flag: Flag; last?: boolean }) {
   const dismissed = flag.state === 'dismissed';

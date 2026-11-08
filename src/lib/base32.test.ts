@@ -14,4 +14,7 @@ describe('base32', () => {
     expect(normalizeCode(' pd-oo9r-hf ')).toBe('PD009RHF');
     expect(normalizeCode('il')).toBe('11');
   });
+  it('normalizeCode strips dashes, underscores and dots', () => {
+    for (const raw of ['PD–009R–HF', 'PD—009R—HF', 'pd_009r_hf', 'PD.009R.HF']) expect(normalizeCode(raw)).toBe('PD009RHF');
+  });
 });

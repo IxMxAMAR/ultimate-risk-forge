@@ -114,6 +114,7 @@ describe('flags panel', () => {
 
   it('Ctrl+K focuses the search box, also from inside another field', async () => {
     await open();
+    await userEvent.setup().selectOptions(screen.getByRole('combobox', { name: 'Decision' }), 'partial-release');
     fireEvent.keyDown(document.body, { key: 'k', ctrlKey: true });
     const search = screen.getByRole('searchbox', { name: 'Search cases' });
     expect(search).toHaveFocus();
@@ -145,9 +146,8 @@ describe('decision panel', () => {
     const sugg = viewOf().suggestion;
     const tone = { deny: 'crit', block: 'crit', escalate: 'crit', approve: 'ok' }[sugg.action as string] ?? 'high';
     expect(document.querySelector('.sugg')).toHaveClass(tone);
-    const hold = screen.getByRole('textbox', { name: 'Hold amount in dollars' });
-    expect(hold).toHaveValue((sugg.keep / 100).toLocaleString('en-US'));
-    expect(hold.closest('.v')).toHaveTextContent(/Keep\s*\$/);
+    expect(screen.queryByRole('textbox', { name: 'Hold amount in dollars' })).not.toBeInTheDocument();
+    expect(document.querySelector('.field .v')).toHaveTextContent(`Keep$${(sugg.keep / 100).toLocaleString('en-US')}`);
   });
 
   it('requires a reason when the chosen action differs from the suggestion', async () => {
@@ -168,35 +168,44 @@ describe('decision panel', () => {
   it('logs one line for a typed hold, none for a reason edit, and no reason text without a reason', async () => {
     const user = userEvent.setup();
     await open();
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Decision' }), 'partial-release');
     const log = screen.getByRole('region', { name: 'Activity log' });
     const lines = () => log.querySelectorAll('.act span').length;
+    const before = lines();
     const hold = screen.getByRole('textbox', { name: 'Hold amount in dollars' });
     await user.clear(hold);
     await user.type(hold, '1500');
-    expect(within(log).getByText('No activity yet')).toBeInTheDocument();
+    expect(lines()).toBe(before);
     await user.tab();
-    expect(lines()).toBe(1);
-    expect(within(log).getByText(/changed the decision to .*\.$/)).not.toHaveTextContent('Reason recorded.');
+    expect(lines()).toBe(before + 1);
+    expect(within(log).getAllByText(/changed the decision to .*\.$/).at(-1)).not.toHaveTextContent('Reason recorded.');
     const reason = screen.getByRole('textbox', { name: 'Reason for changing the suggestion' });
     await user.type(reason, 'Seller sent proof');
     await user.tab();
-    expect(lines()).toBe(1);
+    expect(lines()).toBe(before + 1);
   });
 
   it('reverts an empty hold on blur and commits on Enter', async () => {
     const user = userEvent.setup();
     await open();
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Decision' }), 'partial-release');
+    const log = screen.getByRole('region', { name: 'Activity log' });
+    const before = log.querySelectorAll('.act span').length;
     const hold = screen.getByRole('textbox', { name: 'Hold amount in dollars' });
+    const was = (hold as HTMLInputElement).value;
     await user.clear(hold);
     await user.tab();
-    expect(hold).toHaveValue('0');
+    expect(hold).toHaveValue(was);
+    expect(screen.getByText('Enter an amount in dollars')).toBeInTheDocument();
     await user.type(hold, '250{Enter}');
-    expect(screen.getByRole('region', { name: 'Activity log' }).querySelectorAll('.act span')).toHaveLength(1);
+    expect(log.querySelectorAll('.act span')).toHaveLength(before + 1);
+    expect(screen.queryByText('Enter an amount in dollars')).not.toBeInTheDocument();
   });
 
   it('clamps a negative hold to $0 and previews the seller message', async () => {
     const user = userEvent.setup();
     await open();
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Decision' }), 'partial-release');
     const hold = screen.getByRole('textbox', { name: 'Hold amount in dollars' });
     await user.clear(hold);
     await user.type(hold, '-100');
@@ -251,5 +260,108 @@ describe('startingKeep', () => {
     expect(startingKeep(4_200_000, 0)).toBe(2_100_000);
     expect(startingKeep(4_200_000, 300_000)).toBe(300_000);
     expect(startingKeep(4_200_000, 4_200_000)).toBe(2_100_000);
+  });
+});
+
+describe('decision panel hold entry', () => {
+  const typeHold = async (text: string) => {
+    const user = userEvent.setup();
+    await open();
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Decision' }), 'partial-release');
+    const hold = screen.getByRole('textbox', { name: 'Hold amount in dollars' });
+    await user.clear(hold);
+    await user.type(hold, `${text}{Enter}`);
+    return hold;
+  };
+
+  it.each([['28,000', '28,000'], ['$28,000', '28,000'], [' $ 28 000 ', '28,000']])('reads %s as dollars', async (text, shown) => {
+    const hold = await typeHold(text);
+    expect(hold).toHaveValue(shown);
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+
+  it('says so when the text is not an amount', async () => {
+    const hold = await typeHold('abc');
+    expect(screen.getByRole('status')).toHaveTextContent('Enter an amount in dollars');
+    expect(hold).not.toHaveValue('abc');
+  });
+
+  it('says when a value was kept within the hold', async () => {
+    const held = viewOf().forged.trigger.heldAmount;
+    expect(await typeHold('-5')).toHaveValue('0');
+    expect(screen.getByRole('status')).toHaveTextContent(`Kept within $0–$${(held / 100).toLocaleString('en-US')}`);
+  });
+
+  it('clamps a huge value to the hold and clears the note on the next good entry', async () => {
+    const user = userEvent.setup();
+    const held = viewOf().forged.trigger.heldAmount;
+    const hold = await typeHold('999999999');
+    expect(hold).toHaveValue((held / 100).toLocaleString('en-US'));
+    expect(screen.getByRole('status')).toHaveTextContent('Kept within');
+    await user.clear(hold);
+    await user.type(hold, '1000{Enter}');
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+
+  it('shows the hold as text, not a field, for held-in-full actions and approve', async () => {
+    const user = userEvent.setup();
+    await open();
+    for (const action of ['approve', 'deny', 'hold-payouts', 'escalate', 'block', 'refund-buyers']) {
+      await user.selectOptions(screen.getByRole('combobox', { name: 'Decision' }), action);
+      expect(screen.queryByRole('textbox', { name: 'Hold amount in dollars' })).not.toBeInTheDocument();
+    }
+    for (const action of ['partial-release', 'approve-smaller-hold']) {
+      await user.selectOptions(screen.getByRole('combobox', { name: 'Decision' }), action);
+      expect(screen.getByRole('textbox', { name: 'Hold amount in dollars' })).toBeInTheDocument();
+    }
+  });
+});
+
+describe('a decided case', () => {
+  const done = (c: CaseState): CaseState => ({
+    ...c, decidedAt: '2026-11-08T11:00:00.000Z',
+    decision: { action: 'partial-release', keep: 3000000, release: 3600000, reviewDate: '2026-12-15' },
+  });
+
+  it('locks the flag, note and decision controls and asks for no reason', async () => {
+    await open(c => ({ ...done(c), practice: true }));
+    await waitFor(() => expect(document.querySelector('.flags .flag.sel')).not.toBeNull());
+    expect(screen.getByRole('button', { name: /Confirm/ })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Dismiss/ })).toBeDisabled();
+    expect(screen.getByRole('textbox', { name: 'Your note' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Add my own flag/ })).toBeDisabled();
+    expect(screen.getByRole('combobox', { name: 'Decision' })).toBeDisabled();
+    expect(screen.queryByRole('textbox', { name: 'Hold amount in dollars' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Build report' })).toBeEnabled();
+  });
+
+  it('ignores the C and D shortcuts', async () => {
+    const user = userEvent.setup();
+    await open(done);
+    await waitFor(() => expect(document.querySelector('.flags .flag.sel')).not.toBeNull());
+    await user.keyboard('c');
+    await user.keyboard('d');
+    expect(screen.getByRole('region', { name: 'Activity log' })).toHaveTextContent('No activity yet');
+  });
+
+  it('disables Undo on a reviewed flag', async () => {
+    const id = viewOf().ruleFlags[0]!.id;
+    await open(c => ({ ...done(c), flagStates: { [id]: { state: 'confirmed', note: '' } } }));
+    expect(screen.getAllByRole('button', { name: 'Undo' })[0]).toBeDisabled();
+  });
+});
+
+describe('an unreadable stored case', () => {
+  it('is listed by its code and replaces the console with a message', async () => {
+    const store = await storeWith();
+    await store.put(newCaseState('TD-009R-HK', false, '2026-11-09T10:00:00.000Z'));
+    window.location.hash = '#/case/TD-009R-HK';
+    render(<App store={store} />);
+    expect(await screen.findByRole('alert')).toHaveTextContent('This case can’t be read');
+    const row = screen.getByRole('button', { name: /Unreadable case/ });
+    expect(row).toHaveTextContent('TD-009R-HK');
+    expect(row.querySelector('.sev')).toBeNull();
+    expect(screen.getAllByRole('button', { name: /Only/ }).length).toBeGreaterThan(0);
   });
 });

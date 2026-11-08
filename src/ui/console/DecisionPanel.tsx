@@ -7,7 +7,7 @@ import { RULES_V1 } from '../../domain/ruleset';
 import { actionLabel } from '../../domain/labels';
 import type { ActionKind, Decision } from '../../domain/types';
 import { formatDay } from '../../lib/dates';
-import type { Cents } from '../../lib/money';
+import { formatMoney, type Cents } from '../../lib/money';
 import { sellerMessage } from '../../report/buildReport';
 import { Icon } from '../Icon';
 import { useShortcuts } from '../useShortcuts';
@@ -33,13 +33,15 @@ export function DecisionPanel() {
   const cs = activeOf(state);
   const [reason, setReason] = useState(cs?.overrideReason ?? '');
   const [holdText, setHoldText] = useState<string | null>(null);
+  const [holdNote, setHoldNote] = useState<string | null>(null);
   const [preview, setPreview] = useState(false);
 
   const hidden = cs !== null && view !== null && cs.practice && cs.decidedAt === null;
   const unchosen = hidden && cs.decision === null;
   const shown: Decision | null = !cs || !view ? null : cs.decision ?? view.suggestion;
   const differs = !!(shown && view && !hidden && (shown.action !== view.suggestion.action || shown.keep !== view.suggestion.keep));
-  const needsReason = differs && reason.trim() === '';
+  const decided = cs !== null && cs.decidedAt !== null;
+  const needsReason = differs && !decided && reason.trim() === '';
   const canBuild = shown !== null && !unchosen && !needsReason;
   const openReport = () => { if (canBuild && cs) window.location.hash = `${caseHash(cs.code)}/report`; };
   useShortcuts({ r: openReport });
@@ -51,6 +53,7 @@ export function DecisionPanel() {
 
   const commit = (d: Decision, why: string) => {
     setHoldText(null);
+    setHoldNote(null);
     dispatch({ type: 'set-decision', decision: { action: d.action, keep: d.keep, release: held - d.keep, reviewDate: d.reviewDate }, held, reason: why, trigger, now: new Date().toISOString() });
   };
   // While the suggestion is hidden, the starting hold comes only from the analyst's own decision, never from the suggestion or exposure.
@@ -65,14 +68,18 @@ export function DecisionPanel() {
     commit({ action, keep, release: held - keep, reviewDate: action === 'approve' ? forged.asOf : reviewDateFrom(forged.asOf) }, reason);
   };
   const commitHold = () => {
-    const dollars = parseFloat(holdText ?? '');
+    const typed = (holdText ?? '').replace(/[$,\s]/g, '');
+    const dollars = typed === '' ? NaN : Number(typed);
     setHoldText(null);
-    if (!Number.isFinite(dollars)) return;
-    const keep = Math.min(held, Math.max(0, Math.round(dollars * 100)));
+    if (!Number.isFinite(dollars)) { setHoldNote('Enter an amount in dollars'); return; }
+    const cents = Math.round(dollars * 100);
+    const keep = Math.min(held, Math.max(0, cents));
     if (keep !== shown.keep) commit({ ...shown, keep }, reason);
+    setHoldNote(keep === cents ? null : `Kept within $0–${formatMoney(held)}`);
   };
   const saveReason = () => { if (cs.decision && reason !== cs.overrideReason) commit(cs.decision, reason); };
 
+  const holdLocked = decided || shown.action === 'approve' || HELD_IN_FULL.includes(shown.action);
   const sameAsSuggestion = !hidden && !differs && shown.action === suggestion.action && shown.keep === suggestion.keep;
   const selectValue = unchosen ? '' : sameAsSuggestion ? 'suggestion' : shown.action;
 
@@ -88,10 +95,11 @@ export function DecisionPanel() {
       <div className="fields">
         <div className="field"><div className="k">Hold</div>
           <div className="v">
-            {unchosen ? '—' : (
+            {unchosen ? '—' : holdLocked ? <><span>Keep</span><span>{formatMoney(shown.keep)}</span></> : (
               <><span>Keep</span><span>$</span><input inputMode="decimal" aria-label="Hold amount in dollars" value={holdText ?? (shown.keep / 100).toLocaleString('en-US', { maximumFractionDigits: 2 })} onFocus={() => setHoldText(String(shown.keep / 100))} onChange={e => setHoldText(e.target.value)} onBlur={commitHold} onKeyDown={e => { if (e.key === 'Enter') commitHold(); }} /></>
             )}
           </div>
+          {holdNote && <small role="status">{holdNote}</small>}
         </div>
         <div className="field"><div className="k">Re-review on</div>
           <div className="v">{unchosen ? '—' : <><Icon name="cal" style={{ width: 13, height: 13 }} />{formatDay(shown.reviewDate)}</>}</div>
@@ -99,12 +107,12 @@ export function DecisionPanel() {
       </div>
       {differs && (
         <div className="reason">
-          <input aria-label="Reason for changing the suggestion" placeholder="Reason for changing the suggestion" value={reason} onChange={e => setReason(e.target.value)} onBlur={saveReason} />
+          <input aria-label="Reason for changing the suggestion" placeholder="Reason for changing the suggestion" value={reason} disabled={decided} onChange={e => setReason(e.target.value)} onBlur={saveReason} />
           {needsReason && <small role="alert">Add a reason for changing the suggestion</small>}
         </div>
       )}
       <div className="override">
-        <select aria-label="Decision" value={selectValue} onChange={e => chooseAction(e.target.value)}>
+        <select aria-label="Decision" value={selectValue} disabled={decided} onChange={e => chooseAction(e.target.value)}>
           {unchosen ? <option value="" disabled>Choose a decision</option> : !hidden && <option value="suggestion">Use the suggestion</option>}
           {ACTIONS.map(a => <option key={a} value={a}>{actionLabel(a, trigger)}</option>)}
         </select>

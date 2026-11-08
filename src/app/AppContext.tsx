@@ -1,9 +1,9 @@
-import { createContext, useContext, useEffect, useMemo, useReducer, useRef, type Dispatch, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, type Dispatch, type ReactNode } from 'react';
 import { RULES_V1 } from '../domain/ruleset';
 import { normalizeCode } from '../lib/base32';
 import { STARTER_CODES } from '../forge/starters';
-import { openStore, type CaseState, type Store } from '../persist/db';
-import { deriveCase, type CaseView } from './derive';
+import { memoryStore, openStore, type CaseState, type Settings, type Store } from '../persist/db';
+import { tryDeriveCase, type CaseView } from './derive';
 import { starterCases } from './opening';
 import { caseHash, parseRoute } from './routes';
 import { reducer, type AppAction, type AppState } from './state';
@@ -37,6 +37,13 @@ export function AppProvider({ store: injected, children }: { store?: Store; chil
   const activeCode = useRef<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
+  const flush = useCallback(() => {
+    clearTimeout(timer.current);
+    const batch = [...dirty.current.values()];
+    dirty.current.clear();
+    for (const c of batch) void store.current?.put(c);
+  }, []);
+
   useEffect(() => {
     let live = true;
     const follow = (cases: CaseState[]) => {
@@ -47,12 +54,16 @@ export function AppProvider({ store: injected, children }: { store?: Store; chil
       if (target || route.code === null) dispatch({ type: 'set-view', view: route.page });
     };
     const onHash = () => follow(latest.current);
-    void (async () => {
-      const s = injected ?? await openStore();
+    const load = async (s: Store): Promise<{ s: Store; cases: CaseState[]; firstRun: boolean; settings: Settings }> => {
       const [stored, settings] = await Promise.all([s.all(), s.settings()]);
       const firstRun = stored.length === 0;
       const cases = firstRun ? starterCases(Date.now()) : stored;
       if (firstRun) await Promise.all(cases.map(c => s.put(c)));
+      return { s, cases, firstRun, settings };
+    };
+    void (async () => {
+      // A store that fails to read or write leaves the app working in memory, with the starters seeded there (ARCHITECTURE.md §7).
+      const { s, cases, firstRun, settings } = await load(injected ?? await openStore()).catch(() => load(memoryStore()));
       if (!live) return;
       store.current = s;
       saved.current = new Map(cases.map(c => [c.code, c]));
@@ -80,21 +91,23 @@ export function AppProvider({ store: injected, children }: { store?: Store; chil
     }
     if (dirty.current.size === 0) return;
     clearTimeout(timer.current);
-    timer.current = setTimeout(() => {
-      const batch = [...dirty.current.values()];
-      dirty.current.clear();
-      for (const c of batch) void store.current?.put(c);
-    }, SAVE_DELAY_MS);
-  }, [state.cases]);
+    timer.current = setTimeout(flush, SAVE_DELAY_MS);
+  }, [state.cases, flush]);
 
-  useEffect(() => () => {
-    clearTimeout(timer.current);
-    for (const c of dirty.current.values()) void store.current?.put(c);
-    dirty.current.clear();
-  }, []);
+  // Edits still waiting for the timer are written when the page is hidden or closed, or the app unmounts.
+  useEffect(() => {
+    const onHide = () => { if (document.visibilityState === 'hidden') flush(); };
+    window.addEventListener('pagehide', flush);
+    document.addEventListener('visibilitychange', onHide);
+    return () => {
+      window.removeEventListener('pagehide', flush);
+      document.removeEventListener('visibilitychange', onHide);
+      flush();
+    };
+  }, [flush]);
 
   const cs = activeOf(state);
-  const view = useMemo(() => (cs ? deriveCase(cs, RULES_V1) : null), [cs]);
+  const view = useMemo(() => (cs ? tryDeriveCase(cs, RULES_V1) : null), [cs]);
   const value = useMemo(() => ({ state, dispatch, view }), [state, view]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

@@ -7,6 +7,7 @@ const base = (): AppState => ({
   cases: [newCaseState('PD-009R-HF', true, NOW)], activeCode: 'PD-009R-HF', view: 'console', tab: 'overview',
   selectedFlagId: null, forgeOpen: false, search: '', analyst: 'Sam', persistent: true,
 });
+const DECISION = { action: 'approve' as const, keep: 0, release: 1_000_000, reviewDate: '2026-11-08' };
 const active = (s: AppState) => s.cases[0]!;
 const decide = (keep: number) => reducer(base(), {
   type: 'set-decision', decision: { action: 'partial-release', keep, release: 0, reviewDate: '2026-12-08' },
@@ -75,15 +76,39 @@ describe('reducer', () => {
   });
 
   it('mark-decided stamps the case and logs two lines', () => {
-    const s = reducer(base(), { type: 'mark-decided', now: NOW, score: null });
+    const s = reducer(base(), { type: 'mark-decided', now: NOW, score: null, decision: DECISION });
     expect(active(s).decidedAt).toBe(NOW);
     expect(active(s).activity.map(a => a.what)).toEqual(['Sam signed the report.', 'Sam marked the case decided.']);
   });
 
   it('mark-decided on a decided case changes nothing', () => {
-    const once = reducer(base(), { type: 'mark-decided', now: NOW, score: null });
-    const again = reducer(once, { type: 'mark-decided', now: '2026-11-09T10:00:00.000Z', score: null });
+    const once = reducer(base(), { type: 'mark-decided', now: NOW, score: null, decision: DECISION });
+    const again = reducer(once, { type: 'mark-decided', now: '2026-11-09T10:00:00.000Z', score: null, decision: DECISION });
     expect(active(again)).toBe(active(once));
+  });
+
+  it('mark-decided keeps an existing decision and otherwise stores the one shown', () => {
+    expect(active(reducer(base(), { type: 'mark-decided', now: NOW, score: null, decision: DECISION })).decision).toEqual(DECISION);
+    const own = decide(400_000);
+    expect(active(reducer(own, { type: 'mark-decided', now: NOW, score: null, decision: DECISION })).decision).toBe(active(own).decision);
+  });
+
+  it('ignores every edit once the case is decided', () => {
+    const flag = { id: 'x', kind: 'analyst' as const, severity: 'high' as const, title: 'Mine', why: '', evidence: { tab: 'disputes' as const, ids: [] }, state: 'raised' as const, note: '', addedBy: 'analyst' as const };
+    const done = reducer(decide(400_000), { type: 'mark-decided', now: NOW, score: null, decision: DECISION });
+    for (const a of [
+      { type: 'set-flag-state', id: 'f1', state: 'confirmed', title: 'T', now: NOW },
+      { type: 'set-note', id: 'f1', note: 'n' },
+      { type: 'add-analyst-flag', flag, now: NOW },
+      { type: 'set-decision', decision: { action: 'deny', keep: 1_000_000, release: 0, reviewDate: 'd' }, held: 1_000_000, reason: 'r', trigger: 'early-release', now: NOW },
+      { type: 'set-seller-message', text: 'x' },
+      { type: 'set-message-read', read: true },
+      { type: 'set-second-reviewer', name: 'Kim' },
+    ] as const) expect(active(reducer(done, a))).toBe(active(done));
+  });
+
+  it('rounds keep to whole cents', () => {
+    expect(active(decide(400_000.4)).decision).toMatchObject({ keep: 400_000, release: 600_000 });
   });
 
   it('opens cases and ignores unknown codes', () => {

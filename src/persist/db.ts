@@ -26,7 +26,7 @@ export const newCaseState = (code: string, practice: boolean, now: string): Case
   sellerMessage: null, messageRead: false, secondReviewer: '', activity: [], decidedAt: null, score: null,
 });
 
-function memoryStore(): Store {
+export function memoryStore(): Store {
   const cases = new Map<string, CaseState>();
   let settings = DEFAULT_SETTINGS;
   return {

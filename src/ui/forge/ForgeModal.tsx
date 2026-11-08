@@ -54,7 +54,7 @@ export function ForgeModal() {
   }, []);
 
   const update = (next: Partial<Settings>) => {
-    const merged = { ...settings, ...next };
+    const merged = { ...settings, ...next, ...(next.type === 'surprise' ? { seed: randomSeed() } : {}) };
     setSettings(merged);
     setText(encodeCaseCode({ ...merged, version: CURRENT_GENERATOR_VERSION }));
     setError(null);

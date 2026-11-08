@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../../app/App';
@@ -207,5 +207,57 @@ describe('exportCaseJson', () => {
     expect(json.displayId).toBe(v.forged.displayId);
     expect(json.rulesVersion).toBe(RULES_V1.version);
     expect(json.decision).toMatchObject({ action: 'partial-release', keep: KEEP });
+  });
+});
+
+describe('final review fixes', () => {
+  const X3 = 'X3-G000-0N';
+  const keepAll = (c: CaseState): CaseState => ({
+    ...agreeing(c), decision: { action: 'partial-release', keep: 900000, release: 0, reviewDate: '2026-12-15' }, overrideReason: 'Keep it all',
+  });
+
+  it('passes "Money adds up" when the whole hold is kept and the worst case is bigger than the hold', async () => {
+    await open(keepAll, X3);
+    const v = deriveCase(newCaseState(X3, false, NOW), RULES_V1);
+    expect(v.exposure.high).toBeGreaterThan(v.forged.trigger.heldAmount);
+    const row = screen.getByText(/Money adds up/).closest('li')!;
+    expect(within(row).getByRole('img')).toHaveAccessibleName('Done');
+    expect(within(paperOf()).getByText(/covers the worst case/)).toBeInTheDocument();
+  });
+
+  it('stores the shown decision when signing without a saved one, and then locks the page', async () => {
+    const user = userEvent.setup();
+    const store = await openStore(`report-${++n}`);
+    await store.put({ ...agreeing(newCaseState(CODE, false, NOW)), decision: null, overrideReason: '', messageRead: true, secondReviewer: 'Dana' });
+    window.location.hash = `#/case/${CODE}/report`;
+    render(<App store={store} />);
+    await screen.findAllByRole('button', { name: 'Back to case' });
+    await user.click(screen.getByRole('button', { name: 'Mark case decided' }));
+    expect(screen.getByRole('textbox', { name: 'Reviewer name' })).toBeDisabled();
+    expect(screen.getByRole('textbox', { name: 'Message to the seller' })).toBeDisabled();
+    await waitFor(async () => expect((await store.all())[0]!.decision).toMatchObject({ action: expect.any(String) }));
+  });
+
+  it('hides the past decisions of a practice case until it is decided', async () => {
+    await open(c => ({ ...agreeing(c), practice: true }));
+    expect(screen.queryByText('Same facts, same answer')).not.toBeInTheDocument();
+    expect(screen.getByText('Revealed after you decide')).toBeInTheDocument();
+  });
+
+  it('shows past decisions on a normal case', async () => {
+    await open(agreeing);
+    expect(screen.getByText('Same facts, same answer')).toBeInTheDocument();
+  });
+
+  it('puts an icon in every severity chip of the rail', async () => {
+    await open();
+    const chips = [...document.querySelectorAll('.fls .rchip')].filter(c => !['DISMISSED', 'TO REVIEW'].includes(c.textContent ?? ''));
+    expect(chips.length).toBeGreaterThan(0);
+    for (const chip of chips) expect(chip.querySelector('svg')).not.toBeNull();
+  });
+
+  it('labels the audit times UTC', async () => {
+    await open(c => ({ ...agreeing(c), activity: [{ ts: '2026-11-08T10:05:00.000Z', who: 'Sam', what: 'Did a thing' }] }));
+    expect(within(paperOf()).getByText('10:05 UTC')).toBeInTheDocument();
   });
 });

@@ -42,7 +42,7 @@ export function SidePanel({ v, cs, report, hidden }: { v: CaseView; cs: CaseStat
 
   const markDecided = () => {
     const score = cs.practice ? scoreCase(forged, v.flags.filter(f => f.addedBy === 'rules'), cs.analystFlags, d, exposure.high) : null;
-    dispatch({ type: 'mark-decided', now: new Date().toISOString(), score });
+    dispatch({ type: 'mark-decided', now: new Date().toISOString(), score, decision: d });
   };
   const copy = () => {
     void navigator.clipboard?.writeText(report.message);
@@ -65,13 +65,13 @@ export function SidePanel({ v, cs, report, hidden }: { v: CaseView; cs: CaseStat
           {!secondShown && <button className="btn btn-ghost" onClick={() => setAsked(true)}><Icon name="user" />Ask anyway</button>}
         </div>
         {secondShown && (
-          <input className="reviewer" aria-label="Reviewer name" placeholder={secondRequired ? 'Reviewer name (required)' : 'Reviewer name (optional)'} value={cs.secondReviewer} onChange={e => dispatch({ type: 'set-second-reviewer', name: e.target.value })} />
+          <input className="reviewer" aria-label="Reviewer name" disabled={signed} placeholder={secondRequired ? 'Reviewer name (required)' : 'Reviewer name (optional)'} value={cs.secondReviewer} onChange={e => dispatch({ type: 'set-second-reviewer', name: e.target.value })} />
         )}
       </div>
 
       <div className="panel rmsg">
         <span className="label">Edit message to the seller</span>
-        <textarea aria-label="Message to the seller" value={report.message} onChange={e => dispatch({ type: 'set-seller-message', text: e.target.value })} />
+        <textarea aria-label="Message to the seller" disabled={signed} value={report.message} onChange={e => dispatch({ type: 'set-seller-message', text: e.target.value })} />
         <div className="meta2"><span>Plain language · {wordCount(report.message)} words</span><span>Changes update the report</span></div>
         <div className="mrow"><Button style={{ flex: 1 }} icon="copy" onClick={copy}>{copied ? 'Copied' : 'Copy message'}</Button></div>
       </div>
@@ -84,7 +84,7 @@ export function SidePanel({ v, cs, report, hidden }: { v: CaseView; cs: CaseStat
             <ul className="check">
               {checks.map(c => <li key={c.text}><Tick ok={c.ok} /><span>{c.text}</span></li>)}
               <li><label>
-                <input type="checkbox" checked={cs.messageRead} onChange={e => dispatch({ type: 'set-message-read', read: e.target.checked })} />
+                <input type="checkbox" checked={cs.messageRead} disabled={signed} onChange={e => dispatch({ type: 'set-message-read', read: e.target.checked })} />
                 <span className={`tick ${cs.messageRead ? "y" : "n"}`} aria-hidden="true">{cs.messageRead && <Icon name="check" />}</span><span>Seller message read through</span>
               </label></li>
             </ul>

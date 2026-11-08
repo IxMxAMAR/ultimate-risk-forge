@@ -50,9 +50,9 @@ export function letter(v: CaseView, d: Decision, rules: Ruleset): string {
   const { forged, stats } = v;
   const held = formatMoney(forged.trigger.heldAmount);
   const intro = `We reviewed your request to release your ${held} hold.`;
-  const middle = d.action === 'approve'
+  const middle = d.release === forged.trigger.heldAmount
     ? `${intro} We're releasing all of it, ${held} today.`
-    : d.action === 'deny'
+    : d.keep === forged.trigger.heldAmount
       ? `${intro} We can't release any of it yet, so we're keeping the full ${held} for now.`
       : `${intro} We're releasing ${formatMoney(d.release)} today and keeping ${formatMoney(d.keep)} for now.`;
   const brand = worstBrandRate(stats, rules);

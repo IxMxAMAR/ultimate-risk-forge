@@ -23,7 +23,7 @@ export type AppAction =
   | { type: 'set-seller-message'; text: string }
   | { type: 'set-message-read'; read: boolean }
   | { type: 'set-second-reviewer'; name: string }
-  | { type: 'mark-decided'; now: string; score: Score | null }
+  | { type: 'mark-decided'; now: string; score: Score | null; decision: Decision }
   | { type: 'forge-open'; open: boolean }
   | { type: 'set-search'; text: string }
   | { type: 'set-analyst'; name: string };
@@ -35,6 +35,9 @@ function onActive(s: AppState, fn: (c: CaseState) => CaseState): AppState {
   if (!s.cases.some(c => c.code === s.activeCode)) return s;
   return { ...s, cases: s.cases.map(c => (c.code === s.activeCode ? fn(c) : c)) };
 }
+
+// Like onActive, but a decided case is read-only.
+const onOpen = (s: AppState, fn: (c: CaseState) => CaseState): AppState => onActive(s, c => (c.decidedAt === null ? fn(c) : c));
 
 const log = (c: CaseState, who: string, ts: string, ...lines: string[]): ActivityEntry[] =>
   [...c.activity, ...lines.map(what => ({ ts, who, what }))];
@@ -56,7 +59,7 @@ export function reducer(s: AppState, a: AppAction): AppState {
       return { ...s, selectedFlagId: a.ids[next] ?? null };
     }
     case 'set-flag-state':
-      return onActive(s, c => {
+      return onOpen(s, c => {
         const activity = log(c, s.analyst, a.now, `${s.analyst} ${VERB[a.state]} “${a.title}”`);
         if (c.analystFlags.some(f => f.id === a.id)) {
           return { ...c, analystFlags: c.analystFlags.map(f => (f.id === a.id ? { ...f, state: a.state } : f)), activity };
@@ -64,32 +67,32 @@ export function reducer(s: AppState, a: AppAction): AppState {
         return { ...c, flagStates: { ...c.flagStates, [a.id]: { state: a.state, note: c.flagStates[a.id]?.note ?? '' } }, activity };
       });
     case 'set-note':
-      return onActive(s, c => {
+      return onOpen(s, c => {
         if (c.analystFlags.some(f => f.id === a.id)) {
           return { ...c, analystFlags: c.analystFlags.map(f => (f.id === a.id ? { ...f, note: a.note } : f)) };
         }
         return { ...c, flagStates: { ...c.flagStates, [a.id]: { state: c.flagStates[a.id]?.state ?? 'raised', note: a.note } } };
       });
     case 'add-analyst-flag':
-      return onActive(s, c => {
+      return onOpen(s, c => {
         const flag: Flag = { ...a.flag, id: `analyst-${c.analystFlags.length + 1}`, state: 'confirmed', addedBy: 'analyst' };
         return { ...c, analystFlags: [...c.analystFlags, flag], activity: log(c, s.analyst, a.now, `${s.analyst} added a flag: “${flag.title}”`) };
       });
     case 'set-decision':
-      return onActive(s, c => {
+      return onOpen(s, c => {
         const requested = Number.isFinite(a.decision.keep) ? a.decision.keep : c.decision?.keep ?? 0;
-        const keep = Math.min(a.held, Math.max(0, requested));
+        const keep = Math.round(Math.min(a.held, Math.max(0, requested)));
         const decision: Decision = { ...a.decision, keep, release: a.held - keep };
         const changed = c.decision === null || c.decision.action !== decision.action || c.decision.keep !== decision.keep;
         const line = `${s.analyst} changed the decision to ${actionLabel(decision.action, a.trigger)}.${a.reason.trim() === '' ? '' : ' Reason recorded.'}`;
         return { ...c, decision, overrideReason: a.reason, activity: changed ? log(c, s.analyst, a.now, line) : c.activity };
       });
-    case 'set-seller-message': return onActive(s, c => ({ ...c, sellerMessage: a.text }));
-    case 'set-message-read': return onActive(s, c => ({ ...c, messageRead: a.read }));
-    case 'set-second-reviewer': return onActive(s, c => ({ ...c, secondReviewer: a.name }));
+    case 'set-seller-message': return onOpen(s, c => ({ ...c, sellerMessage: a.text }));
+    case 'set-message-read': return onOpen(s, c => ({ ...c, messageRead: a.read }));
+    case 'set-second-reviewer': return onOpen(s, c => ({ ...c, secondReviewer: a.name }));
     case 'mark-decided':
       return onActive(s, c => (c.decidedAt !== null ? c : {
-        ...c, decidedAt: a.now, score: a.score,
+        ...c, decidedAt: a.now, score: a.score, decision: c.decision ?? a.decision,
         activity: log(c, s.analyst, a.now, `${s.analyst} signed the report.`, `${s.analyst} marked the case decided.`),
       }));
     case 'forge-open': return { ...s, forgeOpen: a.open };

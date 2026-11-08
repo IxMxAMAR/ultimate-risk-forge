@@ -45,5 +45,6 @@ export function exposure(s: DisputeStats, rules: Ruleset): Exposure {
 
 export const holdToKeep = (worst: Cents, rules: Ruleset): Cents => ceilTo(Math.ceil(worst * rules.holdBuffer), rules.holdRoundTo);
 
+// `worst` is the most that can be kept, so a caller whose hold is smaller passes the hold instead.
 export const coverage = (keep: Cents, worst: Cents): { covers: boolean; bufferPct: number } =>
-  ({ covers: keep >= worst, bufferPct: Math.round((keep / worst - 1) * 100) });
+  worst <= 0 ? { covers: true, bufferPct: 0 } : { covers: keep >= worst, bufferPct: Math.round((keep / worst - 1) * 100) };

@@ -43,6 +43,7 @@ export function FlagsPanel() {
     if (first) dispatch({ type: 'select-flag', id: first.id });
   }, [state.selectedFlagId, flags, dispatch]);
 
+  const decided = cs !== null && cs.decidedAt !== null;
   const setFlagState = (f: Flag, next: Flag['state']) => dispatch({ type: 'set-flag-state', id: f.id, state: next, title: f.title, now: now() });
   const showEvidence = (f: Flag) => {
     dispatch({ type: 'select-flag', id: f.id });
@@ -53,8 +54,8 @@ export function FlagsPanel() {
   useShortcuts({
     j: () => dispatch({ type: 'move-flag', dir: 1, ids: flags.map(f => f.id) }),
     k: () => dispatch({ type: 'move-flag', dir: -1, ids: flags.map(f => f.id) }),
-    c: () => { if (selected && selected.state !== 'confirmed') setFlagState(selected, 'confirmed'); },
-    d: () => { if (selected && selected.state !== 'dismissed') setFlagState(selected, 'dismissed'); },
+    c: () => { if (!decided && selected && selected.state !== 'confirmed') setFlagState(selected, 'confirmed'); },
+    d: () => { if (!decided && selected && selected.state !== 'dismissed') setFlagState(selected, 'dismissed'); },
     e: () => { if (selected) showEvidence(selected); },
     'ctrl+k': () => document.querySelector<HTMLInputElement>('.topbar input[type="search"]')?.focus(),
   });
@@ -85,14 +86,14 @@ export function FlagsPanel() {
                 {f.state === 'confirmed' && <span className="state-ok"><Icon name="check" style={{ width: 13, height: 13 }} />Confirmed</span>}
                 {f.state === 'dismissed' && <span className="state-no"><Icon name="x" style={{ width: 13, height: 13 }} />Dismissed</span>}
                 {f.state === 'raised' && <span className="state-todo">To review</span>}
-                {f.state !== 'raised' && <button className="btn btn-ghost btn-sm" onClick={() => setFlagState(f, 'raised')}>Undo</button>}
+                {f.state !== 'raised' && <button className="btn btn-ghost btn-sm" disabled={decided} onClick={() => setFlagState(f, 'raised')}>Undo</button>}
               </div>
               <div className="title"><button aria-pressed={sel} onClick={() => dispatch({ type: 'select-flag', id: f.id })}>{f.title}</button></div>
               {f.why && <div className="why">{f.why}</div>}
               {sel && f.state === 'raised' && (
                 <div className="acts">
-                  <button className="btn btn-ghost btn-sm yes" onClick={() => setFlagState(f, 'confirmed')}><Icon name="check" />Confirm</button>
-                  <button className="btn btn-ghost btn-sm no" onClick={() => setFlagState(f, 'dismissed')}><Icon name="x" />Dismiss</button>
+                  <button className="btn btn-ghost btn-sm yes" disabled={decided} onClick={() => setFlagState(f, 'confirmed')}><Icon name="check" />Confirm</button>
+                  <button className="btn btn-ghost btn-sm no" disabled={decided} onClick={() => setFlagState(f, 'dismissed')}><Icon name="x" />Dismiss</button>
                   <span className="spacer" />
                   <button className="btn btn-ghost btn-sm" aria-label="Show evidence" onClick={() => showEvidence(f)}><Icon name="eye" />Evidence</button>
                 </div>
@@ -100,7 +101,7 @@ export function FlagsPanel() {
               {sel && f.state !== 'raised' && (
                 <div className="acts"><span className="spacer" /><button className="btn btn-ghost btn-sm" aria-label="Show evidence" onClick={() => showEvidence(f)}><Icon name="eye" />Evidence</button></div>
               )}
-              {sel && <textarea className="note" aria-label="Your note" value={f.note} onChange={e => dispatch({ type: 'set-note', id: f.id, note: e.target.value })} />}
+              {sel && <textarea className="note" aria-label="Your note" value={f.note} disabled={decided} onChange={e => dispatch({ type: 'set-note', id: f.id, note: e.target.value })} />}
             </article>
           );
         })}
@@ -109,7 +110,7 @@ export function FlagsPanel() {
               evidence={selected ? { tab: selected.evidence.tab, ids: selected.evidence.ids } : { tab: 'disputes', ids: [] }}
               onAdd={flag => { dispatch({ type: 'add-analyst-flag', flag, now: now() }); setAdding(false); }}
               onCancel={() => setAdding(false)} />
-          : <button className="addflag" onClick={() => setAdding(true)}><Icon name="pen" />Add my own flag</button>}
+          : <button className="addflag" disabled={decided} onClick={() => setAdding(true)}><Icon name="pen" />Add my own flag</button>}
         <ActivityLog entries={cs.activity} />
       </div>
     </>

@@ -41,6 +41,11 @@ describe('exposure', () => {
     expect(coverage(2000000, 2616100).covers).toBe(false);
   });
 
+  it('covers a zero worst case without NaN', () => {
+    expect(coverage(0, 0)).toEqual({ covers: true, bufferPct: 0 });
+    expect(coverage(500, 0)).toEqual({ covers: true, bufferPct: 0 });
+  });
+
   it('picks the ecm ladder between the two limits', () => {
     const s = { ...rf0003, byBrandJudged: [{ brand: 'mastercard' as const, payments: 194, disputes: 4, rate: 0.0206 }] };
     expect(networkFines(s, RULES_V1)).toEqual({ low: 100000, high: 200000, tier: 'ecm' });

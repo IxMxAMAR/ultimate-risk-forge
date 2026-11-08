@@ -207,6 +207,41 @@ describe('saving', () => {
   });
 });
 
+describe('storage failures and closing', () => {
+  it('falls back to memory with the starters when the first load or save rejects', async () => {
+    const real = await openStore(`shell-${++n}`);
+    const broken: Store = { ...real, put: () => Promise.reject(new Error('quota')), all: () => Promise.reject(new Error('blocked')) };
+    render(<App store={broken} />);
+    expect(await screen.findByText("Storage is blocked — this session won't be saved.")).toBeInTheDocument();
+    expect(await screen.findByText(forgeCase(STARTER_CODES[2]).displayId)).toBeInTheDocument();
+    expect(document.querySelectorAll('button.case')).toHaveLength(3);
+  });
+
+  it.each([
+    ['pagehide', () => window.dispatchEvent(new Event('pagehide'))],
+    ['visibilitychange to hidden', () => {
+      Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true });
+      document.dispatchEvent(new Event('visibilitychange'));
+    }],
+  ])('writes pending edits on %s', async (_name, fire) => {
+    const real = await seededStore();
+    const put = vi.fn(real.put);
+    window.location.hash = `#/case/${STARTER_CODES[0]}`;
+    function Edit() {
+      const { state, dispatch } = useApp();
+      return <><span data-testid="active">{state.activeCode}</span><button onClick={() => dispatch({ type: 'set-seller-message', text: 'late' })}>edit</button></>;
+    }
+    render(<AppProvider store={{ ...real, put }}><Edit /></AppProvider>);
+    await waitFor(() => expect(screen.getByTestId('active')).toHaveTextContent(STARTER_CODES[0]));
+    fireEvent.click(screen.getByText('edit'));
+    expect(put).not.toHaveBeenCalled();
+    act(() => { fire(); });
+    expect(put).toHaveBeenCalledTimes(1);
+    expect(put.mock.calls[0]![0]).toMatchObject({ code: STARTER_CODES[0], sellerMessage: 'late' });
+    Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true });
+  });
+});
+
 describe('Segmented', () => {
   it('marks the selected option and reports changes', async () => {
     const user = userEvent.setup();

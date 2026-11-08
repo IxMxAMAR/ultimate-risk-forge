@@ -10,7 +10,7 @@ import { DisputesTab, type DisputesMode } from '../ui/console/DisputesTab';
 import { IconSprite } from '../ui/Icon';
 import { ForgeModal } from '../ui/forge/ForgeModal';
 import { ReportPage } from '../ui/report/ReportPage';
-import { AppProvider, useApp } from './AppContext';
+import { activeOf, AppProvider, useApp } from './AppContext';
 
 import '../ui/console/console.css';
 
@@ -38,12 +38,18 @@ function Side() {
 }
 
 function Page() {
-  const { state } = useApp();
+  const { state, view } = useApp();
   const report = state.view === 'report';
+  const unreadable = activeOf(state) !== null && view === null;
   return (
     <div className={`app${report ? ' is-report' : ''}`}>
       <TopBar />
-      {report ? <ReportPage /> : (
+      {report ? <ReportPage /> : unreadable ? (
+        <div className="main">
+          <nav className="rail" aria-label="Cases and case data"><CaseList /></nav>
+          <main className="center"><p role="alert">This case can’t be read. Its code doesn’t match this version of Risk Forge.</p></main>
+        </div>
+      ) : (
         <>
           <CaseHeader />
           <div className="main">

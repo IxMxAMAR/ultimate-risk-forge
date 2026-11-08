@@ -14,6 +14,11 @@ type Base = Omit<CaseView, 'flags' | 'suggestion'>;
 // A forged case and its checks never change for a code, so they are computed once (ARCHITECTURE.md §4).
 const cache = new Map<string, Base>();
 
+// A stored code that no longer forges (for example one from another generator version) is unreadable, not fatal.
+export function tryDeriveCase(cs: CaseState, rules: Ruleset): CaseView | null {
+  try { return deriveCase(cs, rules); } catch { return null; }
+}
+
 export function deriveCase(cs: CaseState, rules: Ruleset): CaseView {
   let base = cache.get(cs.code);
   if (!base) {

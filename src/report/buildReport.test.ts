@@ -106,6 +106,23 @@ describe('buildReport', () => {
     expect(c.range).toEqual([67, 67]);
   });
 
+  it('builds the money sentence from keep and release, not the action', () => {
+    const deny = (keep: number) => sellerMessage(view, { action: 'deny', keep, release: 4200000 - keep, reviewDate: '2026-12-15' });
+    expect(deny(2800000)).toContain('releasing $14,000 today and keeping $28,000 for now');
+    expect(deny(2800000)).not.toContain('the full');
+    const approve = sellerMessage(view, { action: 'approve', keep: 1000000, release: 3200000, reviewDate: '2026-11-08' });
+    expect(approve).toContain('releasing $32,000 today and keeping $10,000 for now');
+    expect(approve).not.toContain('all of it');
+  });
+
+  it('checks coverage against the hold when the worst case is larger', () => {
+    const big = { ...e, high: 4265000 };
+    const whole = buildReport({ ...view, exposure: big }, { ...cs, decision: { ...suggestion } }, 'A', RULES_V1);
+    expect(whole.money.covers).toBe(true);
+    const part = buildReport({ ...view, exposure: big }, cs, 'A', RULES_V1);
+    expect(part.money.covers).toBe(false);
+  });
+
   it('varies the letter for deny and approve', () => {
     expect(sellerMessage(view, suggestion)).toContain('keeping the full $42,000');
     const approve = sellerMessage(view, { action: 'approve', keep: 0, release: 4200000, reviewDate: '2026-11-08' });

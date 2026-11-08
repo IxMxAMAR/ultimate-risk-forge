@@ -193,6 +193,7 @@ tr:last-child td{border-bottom:none}
 .field .v{font-family:'Fira Code',ui-monospace,monospace;font-size:13px;font-weight:500;display:flex;align-items:center;gap:6px}
 .field .v{white-space:nowrap}
 .field .v input{width:10ch;flex:none;min-width:0;background:transparent;border:none;border-bottom:1px solid var(--border-strong);color:var(--fg);font:inherit;padding:0}
+.field small{display:block;margin-top:2px;font-size:12px;color:var(--high-text);white-space:normal}
 .reason{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}
 .reason input{height:34px;background:var(--card);border:1px solid var(--border-strong);border-radius:8px;padding:0 10px;font-size:13px;color:var(--fg)}
 .reason small{font-size:12px;color:var(--high-text)}

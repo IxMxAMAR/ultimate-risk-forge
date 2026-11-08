@@ -17,7 +17,7 @@ export function CaseHeader() {
       <div className="ch-main">
         <div className="seller-av" aria-hidden="true">{forged.subject.initials}</div>
         <div>
-          <div className="case-id">{forged.displayId} · Opened {formatDay(cs.openedAt.slice(0, 10))}</div>
+          <div className="case-id">{forged.displayId} · Opened {formatDay(cs.openedAt.slice(0, 10))} UTC</div>
           <div className="case-title">{forged.subject.name}</div>
           <div className="case-sub">Asks to release a <b>{held}</b> fixed hold early</div>
         </div>

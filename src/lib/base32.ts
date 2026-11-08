@@ -23,5 +23,5 @@ export function checkChar(body: string): string {
 }
 
 export function normalizeCode(raw: string): string {
-  return raw.toUpperCase().replace(/[\s-]/g, '').replace(/[IL]/g, '1').replace(/O/g, '0');
+  return raw.toUpperCase().replace(/[\s\-–—_.]/g, '').replace(/[IL]/g, '1').replace(/O/g, '0');
 }

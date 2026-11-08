@@ -209,3 +209,13 @@ describe('Forge modal', () => {
     expect(window.location.hash).not.toBe('#/forge');
   });
 });
+
+describe('Forge modal seed', () => {
+  it('rerolls the seed when Surprise me is picked', async () => {
+    const { user, dialog } = await openModal();
+    const roll = vi.spyOn(crypto, 'getRandomValues').mockImplementation(<T extends ArrayBufferView | null>(a: T): T => { (a as unknown as Uint32Array)[0] = 0x123456; return a; });
+    await user.click(within(dialog).getByRole('button', { name: /Surprise me/ }));
+    roll.mockRestore();
+    expect(decodeCaseCode(codeInput().value)).toMatchObject({ type: 'surprise', seed: 0x123456 });
+  });
+});

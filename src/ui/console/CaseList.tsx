@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { activeOf, useApp } from '../../app/AppContext';
-import { deriveCase, type CaseView } from '../../app/derive';
+import { tryDeriveCase, type CaseView } from '../../app/derive';
 import { caseHash } from '../../app/routes';
 import { RULES_V1 } from '../../domain/ruleset';
 import { normalizeCode } from '../../lib/base32';
@@ -31,13 +31,13 @@ export function CaseList() {
   const [filter, setFilter] = useState<Filter>('open');
   const active = activeOf(state);
   const rows = state.cases
-    .map((cs, i) => ({ cs, i, view: deriveCase(cs, RULES_V1) }))
+    .map((cs, i) => ({ cs, i, view: tryDeriveCase(cs, RULES_V1) }))
     .sort((a, b) => b.cs.openedAt.localeCompare(a.cs.openedAt) || a.i - b.i);
   const q = state.search.trim().toLowerCase();
   const code = normalizeCode(q);
   const shown = rows.filter(({ cs, view }) =>
     inFilter(filter, cs) &&
-    (q === '' || view.forged.displayId.toLowerCase().includes(q) || view.forged.subject.name.toLowerCase().includes(q) || (code !== '' && normalizeCode(cs.code).includes(code))));
+    (q === '' || (view !== null && (view.forged.displayId.toLowerCase().includes(q) || view.forged.subject.name.toLowerCase().includes(q))) || (code !== '' && normalizeCode(cs.code).includes(code))));
   return (
     <>
       <div className="rail-head"><span className="label">Cases</span><Button variant="primary" small icon="plus" onClick={() => dispatch({ type: 'forge-open', open: true })}>New case</Button></div>
@@ -49,13 +49,13 @@ export function CaseList() {
         ))}
       </div>
       {shown.map(({ cs, view }) => {
-        const level = topSeverity(view, cs);
+        const level = view && topSeverity(view, cs);
         const isActive = cs.code === active?.code;
         return (
           <button key={cs.code} className={`case${isActive ? ' active' : ''}${cs.decidedAt ? ' done' : ''}`} aria-current={isActive ? 'true' : undefined} onClick={() => { window.location.hash = caseHash(cs.code); }}>
-            <span className="r1"><span className="num">{view.forged.displayId}</span>{level && <SeverityChip level={level} />}</span>
-            <span className="t">{caseTitle(view, cs.decidedAt !== null)}</span>
-            <span className="r3"><span>{view.forged.subject.name}</span><span className="num">{formatMoney(view.forged.trigger.heldAmount)}</span></span>
+            <span className="r1"><span className="num">{view ? view.forged.displayId : cs.code}</span>{level && <SeverityChip level={level} />}</span>
+            <span className="t">{view ? caseTitle(view, cs.decidedAt !== null) : 'Unreadable case'}</span>
+            {view && <span className="r3"><span>{view.forged.subject.name}</span><span className="num">{formatMoney(view.forged.trigger.heldAmount)}</span></span>}
           </button>
         );
       })}

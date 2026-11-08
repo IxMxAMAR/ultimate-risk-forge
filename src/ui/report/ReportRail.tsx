@@ -15,14 +15,14 @@ export const SECTIONS = [
   { id: 'rep-6', no: '6', title: 'Audit trail' },
 ];
 
-const CHIP = { critical: ['d-crit', 'CRIT'], high: ['d-high', 'HIGH'], medium: ['d-med', 'MED'] } as const;
+const CHIP = { critical: ['d-crit', 'CRIT', 'oct'], high: ['d-high', 'HIGH', 'tri'], medium: ['d-med', 'MED', 'tri'] } as const;
 
-const chipOf = (f: Flag): readonly [string, string] => (f.state === 'dismissed' ? ['d-off', 'DISMISSED'] : f.state === 'raised' ? ['d-off', 'TO REVIEW'] : CHIP[f.severity]);
+const chipOf = (f: Flag): readonly [string, string, IconName | null] => (f.state === 'dismissed' ? ['d-off', 'DISMISSED', null] : f.state === 'raised' ? ['d-off', 'TO REVIEW', null] : CHIP[f.severity]);
 
 const attachmentIcon = (title: string): IconName => (title.startsWith('Chart') ? 'chart' : title.startsWith('Table') ? 'table' : title.startsWith('Money') ? 'calc' : 'clip');
 
 // Left rail of the report page: contents, case facts, flags, attachments and the consistency check (ARCHITECTURE.md §6).
-export function ReportRail({ v, report, concealed, active, onJump }: { v: CaseView; report: ReportModel; concealed: boolean; active: string; onJump: (id: string) => void }) {
+export function ReportRail({ v, report, concealed, hidden, active, onJump }: { v: CaseView; report: ReportModel; concealed: boolean; hidden: boolean; active: string; onJump: (id: string) => void }) {
   const { forged, stats } = v;
   const { consistency: c } = report;
   const trigger = forged.trigger.kind;
@@ -57,10 +57,10 @@ export function ReportRail({ v, report, concealed, active, onJump }: { v: CaseVi
         <span className="label">Flags in this report</span>
         <div className="fls">
           {v.flags.map(f => {
-            const [cls, word] = chipOf(f);
+            const [cls, word, icon] = chipOf(f);
             return (
               <div key={f.id} className={`fl${f.state === 'confirmed' ? '' : ' off'}`}>
-                <span className={`rchip ${cls}`}>{word}</span>
+                <span className={`rchip ${cls}`}>{icon && <Icon name={icon} />}{word}</span>
                 {f.state === 'dismissed' ? <s>{f.title}</s> : <span>{f.title}</span>}
               </div>
             );
@@ -75,7 +75,7 @@ export function ReportRail({ v, report, concealed, active, onJump }: { v: CaseVi
       </div>
 
       <div className="panel grow">
-        {concealed ? <span className="label">Revealed after you decide</span> : <>
+        {concealed || hidden ? <span className="label">Revealed after you decide</span> : <>
         <span className="label">Same facts, same answer</span>
         <div className="past-h">{c.past.length ? 'Earlier cases of this kind:' : 'No earlier cases of this kind yet.'}</div>
         {rows.map((r, i) => {
