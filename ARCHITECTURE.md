@@ -21,6 +21,8 @@ The forge (`src/forge`) turns a case code into a full case: `forgeCase(code)` de
 ## 5. Checks & rules
 Deterministic checks over a case that produce severity-ranked flags with supporting evidence.
 
+Dispute math (`src/checks/disputeMath.ts`): `disputeStats(case, rules)` computes the 30-day dispute rate (window `(asOf − 30d, asOf]`, payments by `ts`, disputes by `filedTs`) and a per-month table from the earliest payment month through the month before asOf's month, including empty months (rate NaN, shown as "—"). A month is judged once its last day is on or before asOf − 60 days; judged rates count disputes by the payment's month, while filed-month counts feed the "Last 30 days" chart mode. Judged totals also give per-brand rows (visa, mastercard, amex, discover; `brandGroup` folds amex and discover into "other"), dispute reasons, won/lost/open outcomes, the average judged dispute amount (whole dollars), refund rate, open disputes, growth (last full month's payments ÷ the month before) and immature payments. `worstBrandRate` returns the higher of visa and mastercard, each only with at least 30 judged payments. Rates with no payments are NaN, never Infinity. All date math is UTC.
+
 ## 6. UI
 Console view for working a case, a report view, and the Forge modal. Severity is always icon, word and color. Keyboard shortcuts drive flag review.
 
