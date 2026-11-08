@@ -44,7 +44,7 @@ describe('PlaybookBar', () => {
   it('answers a single-choice step on click', () => {
     const p = props({});
     render(<PlaybookBar {...p} />);
-    fireEvent.click(screen.getByRole('button', { name: /2No$/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'No' }));
     expect(p.onAnswer).toHaveBeenCalledWith('jump', ['no']);
   });
 
@@ -61,6 +61,8 @@ describe('PlaybookBar', () => {
     const html = container.innerHTML;
     expect(html).not.toMatch(/Data says|Accept the data|Use this decision/);
     expect(html).not.toContain(view.suggestion.summary);
+    expect(html).not.toContain(view.suggestion.basis);
+    expect(html).not.toContain('Sales jump: ');
     expect(screen.getByText('All steps answered — make your call in the decision panel.')).toBeInTheDocument();
   });
 
@@ -96,16 +98,35 @@ describe('PlaybookBar', () => {
     expect(screen.getAllByTitle('skipped — not needed')).toHaveLength(2);
   });
 
-  it('disables answers when read-only', () => {
-    render(<PlaybookBar {...props({}, { readOnly: true })} />);
-    expect(screen.getByRole('button', { name: /2No$/ })).toBeDisabled();
+  it('disables every control when read-only', () => {
+    const { unmount } = render(<PlaybookBar {...props({ jump: ['yes'] }, { readOnly: true, showData: true, expected })} />);
+    expect(screen.getByRole('button', { name: 'Sales jump' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: "Accept the data's answers" })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /^Yes/ })).toBeDisabled();
+    unmount();
+    render(<PlaybookBar {...props(toBrands, { readOnly: true })} />);
+    expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /^None/ })).toBeDisabled();
   });
 
-  it('marks a mismatch when comparing', () => {
-    const wrong = { ...expected, jump: expected.jump![0] === 'yes' ? ['no'] : ['yes'] };
-    render(<PlaybookBar {...props(wrong, { compare: true, expected })} />);
-    expect(screen.getByText('Differs')).toBeInTheDocument();
-    expect(screen.getAllByText(/Yours:/).length).toBeGreaterThan(1);
+  it('disables Use this decision when read-only', () => {
+    render(<PlaybookBar {...props(all, { readOnly: true, conclusion: view.suggestion })} />);
+    expect(screen.getByRole('button', { name: 'Use this decision' })).toBeDisabled();
+  });
+
+  it('lists a step the analyst skipped but the expected path has, as a mismatch', () => {
+    expect(expected.jump).toEqual(['yes']);
+    render(<PlaybookBar {...props({ jump: ['no'] }, { compare: true, expected })} />);
+    const row = screen.getByText('Hidden rate', { selector: 'b' }).closest('li')!;
+    expect(row).toHaveTextContent('Yours: skipped');
+    expect(row).toHaveTextContent('Expected: Yes');
+    expect(row).toHaveTextContent('Differs');
+  });
+
+  it('marks a step that matches the expected path', () => {
+    render(<PlaybookBar {...props({ jump: ['yes'] }, { compare: true, expected })} />);
+    const row = screen.getByText('Sales jump', { selector: 'b' }).closest('li')!;
+    expect(row).toHaveTextContent('Matches');
   });
 
   it('opens a look-at chip', () => {

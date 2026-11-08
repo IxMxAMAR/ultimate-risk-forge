@@ -44,9 +44,9 @@ function Question({ sv, readOnly, showData, expectedIds, onAnswer, onLook }: { s
         {answers.map((a, i) => {
           const on = picked.includes(a.id);
           return (
-            <button key={a.id} type="button" className="pans" disabled={readOnly} aria-pressed={step.multi ? on : undefined}
+            <button key={a.id} type="button" className="pans" disabled={readOnly} aria-pressed={step.multi ? on : undefined} aria-keyshortcuts={i < 4 ? String(i + 1) : undefined}
               onClick={() => (step.multi ? setPicked(toggle(answers, picked, a.id)) : onAnswer(step.id, [a.id]))}>
-              {i < 4 && <span className="kbd">{i + 1}</span>}
+              {i < 4 && <span className="kbd" aria-hidden="true">{i + 1}</span>}
               <span><b>{step.multi && <span className={`pbox${on ? ' on' : ''}`}>{on && <Icon name="check" />}</span>}{a.label}{tag(a)}</b>{a.detail && <small>{a.detail}</small>}</span>
             </button>
           );
@@ -60,13 +60,14 @@ function Question({ sv, readOnly, showData, expectedIds, onAnswer, onLook }: { s
 function Compare({ walk, expected }: { walk: Walk; expected: PlaybookAnswers }) {
   return (
     <ul className="pcmp">
-      {walk.steps.filter(s => s.status !== 'skipped').map(s => {
-        const want = expected[s.step.id] ?? [];
-        const ok = sameSet(s.chosen, want);
+      {walk.steps.filter(s => s.status !== 'skipped' || s.step.id in expected).map(s => {
+        const want = expected[s.step.id];
+        const yours = s.status === 'skipped' ? undefined : s.chosen;
+        const ok = !!yours && !!want && sameSet(yours, want);
         return (
           <li key={s.step.id} className={ok ? 'ok' : 'bad'}>
             <b>{s.step.title}</b>
-            <span>Yours: {labelsOf(s.answers, s.chosen)} · Expected: {labelsOf(s.answers, want)}</span>
+            <span>Yours: {yours ? labelsOf(s.answers, yours) : 'skipped'} · Expected: {want ? labelsOf(s.answers, want) : 'skipped'}</span>
             <span className="pmark"><Icon name={ok ? 'check' : 'x'} />{ok ? 'Matches' : 'Differs'}</span>
           </li>
         );
@@ -85,7 +86,7 @@ export function PlaybookBar(p: PlaybookBarProps) {
       <section className="pbar pbar-c" aria-label="Playbook">
         <span>Playbook · Step {step} of {walk.total}: {p.title}</span>
         <span className="spacer" />
-        <Button small icon="down" onClick={() => p.onCollapse(false)}>Expand</Button>
+        <Button small icon="chev" onClick={() => p.onCollapse(false)}>Expand</Button>
       </section>
     );
   }
