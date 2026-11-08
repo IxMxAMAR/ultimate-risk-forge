@@ -21,12 +21,16 @@ export function PlainWords({ view }: { view: CaseView }) {
       <Icon name="info" />
       <div>
         <b>In plain words:</b>{' '}
-        {hidden
-          ? `the ${pct(stats.rate30d)} looks safe only because most sales are too new to have been disputed yet. On sales old enough to judge (${range}), `
-          : `on sales old enough to judge (${range}), `}
-        <b>{pct(stats.judgedRate)} of payments were disputed</b>
-        {`, which is ${side} Visa's ${pct(RULES_V1.limits.visa)} line.`}
-        {hidden && worst ? ` ${BRAND_NAME[worst.brand]} alone is at ${pct(worst.rate)}.` : ''}
+        {!Number.isFinite(stats.judgedRate) ? 'No sales are old enough to judge yet.' : (
+          <>
+            {hidden
+              ? `the ${pct(stats.rate30d)} looks safe only because most sales are too new to have been disputed yet. On sales old enough to judge (${range}), `
+              : `on sales old enough to judge (${range}), `}
+            <b>{pct(stats.judgedRate)} of payments were disputed</b>
+            {`, which is ${side} Visa's ${pct(RULES_V1.limits.visa)} line.`}
+            {hidden && worst ? ` ${BRAND_NAME[worst.brand]} alone is at ${pct(worst.rate)}.` : ''}
+          </>
+        )}
       </div>
     </div>
   );

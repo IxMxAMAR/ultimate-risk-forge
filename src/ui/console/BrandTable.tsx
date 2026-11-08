@@ -15,10 +15,12 @@ const GROUPS: { group: Group; name: string; limit: string }[] = [
   { group: 'other', name: 'Amex & others', limit: 'varies' },
 ];
 
-function Status({ group, rate }: { group: Group; rate: number }) {
+function Status({ group, rate, payments }: { group: Group; rate: number; payments: number }) {
+  if (!Number.isFinite(rate)) return <span>—</span>;
+  if (group !== 'other' && payments < RULES_V1.minBrandPayments) return <span className="sev na"><Icon name="info" />NOT ENOUGH DATA</span>;
   if (group === 'mastercard' && rate >= limits.mcHecm) return <span className="sev crit"><Icon name="oct" />EXCESSIVE</span>;
   if ((group === 'mastercard' && rate >= limits.mcEcm) || (group === 'visa' && rate >= limits.visa)) return <span className="sev high"><Icon name="tri" />OVER</span>;
-  if (group === 'other' && rate >= limits.visa) return <span className="sev med">REVIEW</span>;
+  if (group === 'other' && rate >= limits.visa) return <span className="sev med"><Icon name="tri" />REVIEW</span>;
   return <span className="sev ok"><Icon name="check" />OK</span>;
 }
 
@@ -58,7 +60,7 @@ export function BrandTable({ view, highlight, evidenceFor }: { view: CaseView; h
                 <td className="n">{r.disputes}</td>
                 <td className="n" style={hot ? { color: 'var(--crit-text)', fontWeight: 600 } : undefined}>{pct(r.rate)}</td>
                 <td className="n">{r.limit}</td>
-                <td><Status group={r.group} rate={r.rate} /></td>
+                <td><Status group={r.group} rate={r.rate} payments={r.payments} /></td>
               </tr>
             );
           })}

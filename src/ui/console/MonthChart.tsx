@@ -63,7 +63,7 @@ export function MonthChart({ view, mode, highlight, evidenceFor }: { view: CaseV
             const rate = rateOf(m);
             if (!Number.isFinite(rate)) return <text key={m.month} x={centre(i)} y={BASE - 6} fill="#94A3B8">—</text>;
             const inside = BASE - y(rate) >= 28;
-            return <text key={m.month} x={centre(i)} y={inside ? y(rate) + 20 : y(rate) - 6} fill={inside && m.judged ? '#0B1120' : '#94A3B8'}>{pct(rate)}</text>;
+            return <text key={m.month} x={centre(i)} y={inside ? y(rate) + 20 : y(rate) - 6} fill={!inside ? '#94A3B8' : !m.judged ? '#94A3B8' : rate >= 0.01 ? '#0B1120' : 'var(--fg)'}>{pct(rate)}</text>;
           })}
         </g>
         <g fontFamily="Fira Sans" fontSize="12" fill="#CBD5E1" textAnchor="middle">
@@ -72,7 +72,7 @@ export function MonthChart({ view, mode, highlight, evidenceFor }: { view: CaseV
         <g fontFamily="Fira Code" fontSize="10.5" fill="#94A3B8" textAnchor="middle">
           {rows.map((m, i) => (
             <text key={m.month} x={centre(i)} y="236">
-              {m.judged ? `${m.payments.toLocaleString('en-US')} pays${mode === 'filed' ? ' · filed' : ''}` : `${m.payments.toLocaleString('en-US')} · too new`}
+              {m.judged ? `${m.payments.toLocaleString('en-US')} pays${mode === 'filed' ? ' · filed' : ''}` : `${m.payments.toLocaleString('en-US')}${mode === 'filed' ? '' : ' · too new'}`}
             </text>
           ))}
         </g>

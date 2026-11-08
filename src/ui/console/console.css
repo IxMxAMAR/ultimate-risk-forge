@@ -49,6 +49,7 @@
 .sev.high{color:var(--high-text);background:var(--high-soft)}
 .sev.med{color:var(--med-text);background:var(--med-soft)}
 .sev.ok{color:var(--ok-text);background:var(--ok-soft)}
+.sev.na{color:var(--fg3);background:var(--muted)}
 .nav{margin-top:18px}
 .nav .label{margin:0 4px 8px}
 .nav a{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:7px;color:var(--fg2);text-decoration:none;font-size:13px;transition:background .15s}

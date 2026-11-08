@@ -89,6 +89,16 @@ describe('Disputes tab', () => {
     render(<Harness view={view} />);
     const row = screen.getByText('Amex & others').closest('tr') as HTMLElement;
     expect(within(row).getAllByText('—').length).toBeGreaterThan(0);
+    expect(within(row).queryByText('OK')).not.toBeInTheDocument();
+  });
+
+  it('shows no over-limit status for a Mastercard row below the minimum payments', () => {
+    const base = viewOf(EASY);
+    const stats = { ...base.stats, byBrandJudged: base.stats.byBrandJudged.map(r => (r.brand === 'mastercard' ? { ...r, payments: 5, disputes: 2, rate: 0.4 } : r)) };
+    render(<Harness view={{ ...base, stats }} />);
+    const row = document.querySelector('tr[data-evidence-id="brand:mastercard"]') as HTMLElement;
+    expect(within(row).getByText('NOT ENOUGH DATA')).toBeInTheDocument();
+    expect(within(row).queryByText('EXCESSIVE')).not.toBeInTheDocument();
   });
 
   it('lists every dispute newest first', () => {
