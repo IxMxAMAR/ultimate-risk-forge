@@ -7,7 +7,7 @@ import { reducer, type AppAction, type AppState } from './state';
 const NOW = '2026-11-08T10:00:00.000Z';
 const base = (): AppState => ({
   cases: [newCaseState('PD-009R-HF', true, NOW)], activeCode: 'PD-009R-HF', view: 'console', tab: 'overview',
-  selectedFlagId: null, forgeOpen: false, search: '', analyst: 'Sam', persistent: true,
+  selectedFlagId: null, look: null, forgeOpen: false, search: '', analyst: 'Sam', persistent: true,
 });
 const DECISION = { action: 'approve' as const, keep: 0, release: 1_000_000, reviewDate: '2026-11-08' };
 const active = (s: AppState) => s.cases[0]!;

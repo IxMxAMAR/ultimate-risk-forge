@@ -13,11 +13,15 @@ interface AppContextValue { state: AppState; dispatch: Dispatch<AppAction>; view
 const SAVE_DELAY_MS = 300;
 
 const INITIAL: AppState = {
-  cases: [], activeCode: null, view: 'console', tab: 'disputes', selectedFlagId: null,
+  cases: [], activeCode: null, view: 'console', tab: 'disputes', selectedFlagId: null, look: null,
   forgeOpen: false, search: '', analyst: 'Analyst', persistent: true,
 };
 
 export const activeOf = (s: AppState): CaseState | null => s.cases.find(c => c.code === s.activeCode) ?? null;
+
+// The evidence ids to outline: a playbook chip's look-at wins over the selected flag's evidence until a flag is chosen.
+export const evidenceIds = (s: AppState, view: CaseView | null): string[] =>
+  s.look ?? view?.flags.find(f => f.id === s.selectedFlagId)?.evidence.ids ?? [];
 
 const Ctx = createContext<AppContextValue | null>(null);
 

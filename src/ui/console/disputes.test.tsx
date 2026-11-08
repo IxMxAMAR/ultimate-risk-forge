@@ -118,10 +118,15 @@ describe('Disputes tab', () => {
     expect(screen.getByText('REVIEW').querySelector('svg')).not.toBeNull();
   });
 
+  it('leaves out the plain-words sentence when the case has a playbook', () => {
+    render(<Harness view={viewOf(EASY)} />);
+    expect(document.querySelector('.plain')).toBeNull();
+  });
+
   it('says no sales are old enough to judge when nothing is judged', () => {
     const base = viewOf(EASY);
     const stats = { ...base.stats, judgedRate: NaN, judgedMonths: [] };
-    render(<Harness view={{ ...base, stats }} />);
+    render(<Harness view={{ ...base, stats, playbook: null }} />);
     expect(screen.getByText(/No sales are old enough to judge yet\./)).toBeInTheDocument();
   });
 

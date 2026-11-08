@@ -206,3 +206,6 @@ tr:last-child td{border-bottom:none}
 .btn:disabled{opacity:.5;cursor:not-allowed}
 .hint{font-size:11.5px;color:var(--fg3);margin-top:10px;display:flex;gap:10px;flex-wrap:wrap}
 .stat.is-evidence{background:rgba(250,204,21,.07);box-shadow:inset 0 -3px 0 var(--evid)}
+.field.is-evidence{border-color:var(--evid)}
+.sfile{margin-left:6px;padding:0 4px;border-radius:4px;color:var(--fg2)}
+.sfile.is-evidence{background:rgba(250,204,21,.07);box-shadow:inset 0 -3px 0 var(--evid)}

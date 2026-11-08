@@ -25,7 +25,7 @@ export function DisputesTab({ view, mode, onMode, highlight, evidenceFor = 'sele
         <h2><Icon name="shield" style={{ width: 20, height: 20, color: 'var(--fg3)' }} />Disputes</h2>
         <Segmented label="How to count the dispute rate" options={MODES} value={mode} onChange={onMode} />
       </div>
-      <PlainWords view={view} />
+      {!view.playbook && <PlainWords view={view} />}
       <KpiRow view={view} highlight={highlight} />
       <div className="evgrid">
         <MonthChart view={view} mode={mode} highlight={highlight} evidenceFor={evidenceFor} />

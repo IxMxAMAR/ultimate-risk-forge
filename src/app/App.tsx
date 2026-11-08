@@ -7,22 +7,26 @@ import { DecisionPanel } from '../ui/console/DecisionPanel';
 import { FlagsPanel } from '../ui/console/FlagsPanel';
 import { TopBar } from '../ui/console/TopBar';
 import { DisputesTab, type DisputesMode } from '../ui/console/DisputesTab';
+import { PlaybookBar } from '../ui/console/PlaybookBar';
+import { usePlaybookBar } from '../ui/console/usePlaybookBar';
 import { IconSprite } from '../ui/Icon';
 import { ForgeModal } from '../ui/forge/ForgeModal';
 import { ReportPage } from '../ui/report/ReportPage';
-import { activeOf, AppProvider, useApp } from './AppContext';
+import { activeOf, AppProvider, evidenceIds, useApp } from './AppContext';
 
 import '../ui/console/console.css';
 
-// The centre column; the flag selected on the right decides which evidence is highlighted (ARCHITECTURE.md §6).
+// The centre column: the playbook bar over the tab; a playbook chip or the flag selected on the right decides which evidence is highlighted (ARCHITECTURE.md §6).
 function Center() {
   const { state, view } = useApp();
   const [mode, setMode] = useState<DisputesMode>('purchase');
-  const flag = view?.flags.find(f => f.id === state.selectedFlagId);
-  const highlight = new Set(flag?.evidence.tab === 'disputes' ? flag.evidence.ids : []);
+  const bar = usePlaybookBar();
+  const highlight = new Set(evidenceIds(state, view));
+  const evidenceFor = state.look ? 'playbook step' : view?.flags.find(f => f.id === state.selectedFlagId)?.title;
   return (
     <main className="center">
-      {view && state.tab === 'disputes' && <DisputesTab view={view} mode={mode} onMode={setMode} highlight={highlight} evidenceFor={flag?.title} />}
+      {bar && <PlaybookBar {...bar} />}
+      {view && state.tab === 'disputes' && <DisputesTab view={view} mode={mode} onMode={setMode} highlight={highlight} evidenceFor={evidenceFor} />}
     </main>
   );
 }

@@ -1,12 +1,12 @@
-import { activeOf, useApp } from '../../app/AppContext';
+import { activeOf, evidenceIds, useApp } from '../../app/AppContext';
 import { formatDay } from '../../lib/dates';
 import { formatMoney } from '../../lib/money';
 
 export function CaseHeader() {
   const { state, view } = useApp();
   const cs = activeOf(state);
-  const flag = view?.flags.find(f => f.id === state.selectedFlagId);
-  const young = flag?.evidence.ids.includes('kpi:account-age') ? ' is-evidence' : '';
+  const lit = evidenceIds(state, view);
+  const young = lit.includes('kpi:account-age') ? ' is-evidence' : '';
   if (!view || !cs) return <section className="casehead" aria-label="Case summary"><span className="case-sub">Open or forge a case to begin.</span></section>;
   const { forged, stats } = view;
   const held = formatMoney(forged.trigger.heldAmount);
@@ -20,6 +20,9 @@ export function CaseHeader() {
           <div className="case-id">{forged.displayId} · Opened {formatDay(cs.openedAt.slice(0, 10))} UTC</div>
           <div className="case-title">{forged.subject.name}</div>
           <div className="case-sub">Asks to release a <b>{held}</b> fixed hold early</div>
+          {forged.docs.length > 0 && (
+            <div className="case-sub sfiles">Seller files: {forged.docs.map(d => <span key={d.kind} className={`sfile${lit.includes(`doc:${d.kind}`) ? ' is-evidence' : ''}`} data-evidence-id={`doc:${d.kind}`}>{d.title}</span>)}</div>
+          )}
         </div>
       </div>
       <div className="stat"><span className="k">Money at stake</span><span className="v big">{held}</span></div>

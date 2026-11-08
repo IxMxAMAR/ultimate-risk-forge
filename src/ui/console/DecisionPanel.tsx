@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { activeOf, useApp } from '../../app/AppContext';
+import { activeOf, evidenceIds, useApp } from '../../app/AppContext';
 import { caseHash } from '../../app/routes';
 import { holdToKeep } from '../../checks/exposure';
 import { reviewDateFrom } from '../../checks/flags';
@@ -93,7 +93,7 @@ export function DecisionPanel() {
         <Icon name="shield" style={{ width: 20, height: 20, color: hidden ? 'var(--fg3)' : `var(--${TONE[suggestion.action]}-text)` }} />
       </div>
       <div className="fields">
-        <div className="field"><div className="k">Hold</div>
+        <div className={`field${evidenceIds(state, view).includes('decision-hold') ? ' is-evidence' : ''}`} data-evidence-id="decision-hold"><div className="k">Hold</div>
           <div className="v">
             {unchosen ? '—' : holdLocked ? <><span>Keep</span><span>{formatMoney(shown.keep)}</span></> : (
               <><span>Keep</span><span>$</span><input inputMode="decimal" aria-label="Hold amount in dollars" value={holdText ?? (shown.keep / 100).toLocaleString('en-US', { maximumFractionDigits: 2 })} onFocus={() => setHoldText(String(shown.keep / 100))} onChange={e => setHoldText(e.target.value)} onBlur={commitHold} onKeyDown={e => { if (e.key === 'Enter') commitHold(); }} /></>

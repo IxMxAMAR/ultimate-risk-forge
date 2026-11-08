@@ -7,7 +7,7 @@ import type { Score } from '../practice/score';
 
 export interface AppState {
   cases: CaseState[]; activeCode: string | null; view: 'console' | 'report'; tab: DataTab;
-  selectedFlagId: string | null; forgeOpen: boolean; search: string; analyst: string; persistent: boolean;
+  selectedFlagId: string | null; look: string[] | null; forgeOpen: boolean; search: string; analyst: string; persistent: boolean;
 }
 
 export type AppAction =
@@ -17,6 +17,7 @@ export type AppAction =
   | { type: 'set-view'; view: AppState['view'] }
   | { type: 'set-tab'; tab: DataTab }
   | { type: 'select-flag'; id: string | null }
+  | { type: 'set-look'; ids: string[] }
   | { type: 'move-flag'; dir: 1 | -1; ids: string[] }
   | { type: 'set-flag-state'; id: string; state: Flag['state']; title: string; now: string }
   | { type: 'set-note'; id: string; note: string }
@@ -51,16 +52,17 @@ export function reducer(s: AppState, a: AppAction): AppState {
     case 'loaded': return { ...s, cases: a.cases, analyst: a.analyst, persistent: a.persistent };
     case 'open-case':
       if (!s.cases.some(c => c.code === a.code)) return s;
-      return { ...s, activeCode: a.code, view: 'console', tab: 'disputes', selectedFlagId: null };
+      return { ...s, activeCode: a.code, view: 'console', tab: 'disputes', selectedFlagId: null, look: null };
     case 'add-case': return { ...s, cases: [...s.cases.filter(c => c.code !== a.state.code), a.state] };
     case 'set-view': return { ...s, view: a.view };
     case 'set-tab': return { ...s, tab: a.tab };
-    case 'select-flag': return { ...s, selectedFlagId: a.id };
+    case 'select-flag': return { ...s, selectedFlagId: a.id, look: null };
+    case 'set-look': return { ...s, look: a.ids };
     case 'move-flag': {
       if (a.ids.length === 0) return s;
       const at = s.selectedFlagId === null ? -1 : a.ids.indexOf(s.selectedFlagId);
       const next = at === -1 ? (a.dir === 1 ? 0 : a.ids.length - 1) : (at + a.dir + a.ids.length) % a.ids.length;
-      return { ...s, selectedFlagId: a.ids[next] ?? null };
+      return { ...s, selectedFlagId: a.ids[next] ?? null, look: null };
     }
     case 'set-flag-state':
       return onOpen(s, c => {

@@ -29,12 +29,12 @@ export function KpiRow({ view, highlight }: { view: CaseView; highlight: Set<str
 
   return (
     <div className="kpis">
-      <div className={`kpi${misleading ? ' mutedv' : ''}`}>
+      <div className={`kpi${misleading ? ' mutedv' : ''}${highlight.has('kpi:rate-30d') ? ' is-evidence' : ''}`} data-evidence-id="kpi:rate-30d">
         <div className="k">Last-30-day rate {misleading && <span className="sev med">MISLEADING</span>}</div>
         <div className="v">{pct(stats.rate30d)}</div>
         <div className="s num">{stats.disputes30d} disputes / {stats.payments30d.toLocaleString('en-US')} payments</div>
       </div>
-      <div className={`kpi${judgedLevel === 'crit' ? ' crit' : ''}`}>
+      <div className={`kpi${judgedLevel === 'crit' ? ' crit' : ''}${highlight.has('kpi:rate-judged') ? ' is-evidence' : ''}`} data-evidence-id="kpi:rate-judged">
         <div className="k">Rate on judged sales {judgedLevel && <Chip level={judgedLevel} />}</div>
         <div className="v">{pct(stats.judgedRate)}</div>
         <div className="bullet" aria-hidden="true">

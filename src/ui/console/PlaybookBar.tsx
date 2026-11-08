@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import type { Suggestion } from '../../checks/suggest';
 import { formatDay } from '../../lib/dates';
 import type { Answer, LookAt, PlaybookAnswers, StepView, Walk } from '../../playbooks/types';
@@ -7,9 +6,9 @@ import { Icon } from '../Icon';
 import './playbook.css';
 
 export interface PlaybookBarProps {
-  title: string; walk: Walk; collapsed: boolean; readOnly: boolean;
+  title: string; walk: Walk; collapsed: boolean; readOnly: boolean; picked: string[];
   showData: boolean; expected: PlaybookAnswers | null; conclusion: Suggestion | null; compare: boolean;
-  onAnswer(stepId: string, chosen: string[]): void; onReopen(stepId: string): void;
+  onPick(ids: string[]): void; onAnswer(stepId: string, chosen: string[]): void; onReopen(stepId: string): void;
   onLook(look: LookAt): void; onAcceptAll(): void; onUseDecision(): void; onCollapse(collapsed: boolean): void;
 }
 
@@ -19,15 +18,14 @@ const labelsOf = (answers: Answer[], ids: string[]) => {
 };
 const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every(x => b.includes(x));
 
-function toggle(answers: Answer[], picked: string[], id: string): string[] {
+export function toggle(answers: Answer[], picked: string[], id: string): string[] {
   if (picked.includes(id)) return picked.filter(x => x !== id);
   if (answers.find(a => a.id === id)?.exclusive) return [id];
   return [...picked.filter(x => !answers.find(a => a.id === x)?.exclusive), id];
 }
 
-function Question({ sv, readOnly, showData, expectedIds, onAnswer, onLook }: { sv: StepView; readOnly: boolean; showData: boolean; expectedIds: string[]; onAnswer(stepId: string, chosen: string[]): void; onLook(look: LookAt): void }) {
+function Question({ sv, readOnly, showData, picked, expectedIds, onPick, onAnswer, onLook }: { sv: StepView; readOnly: boolean; showData: boolean; picked: string[]; expectedIds: string[]; onPick(ids: string[]): void; onAnswer(stepId: string, chosen: string[]): void; onLook(look: LookAt): void }) {
   const { step, answers, lookAt } = sv;
-  const [picked, setPicked] = useState<string[]>(sv.chosen);
   const tag = (a: Answer) => showData && expectedIds.includes(a.id) && <span className="ptag"><Icon name="check" />Data says</span>;
   return (
     <div className="pq-row">
@@ -45,7 +43,7 @@ function Question({ sv, readOnly, showData, expectedIds, onAnswer, onLook }: { s
           const on = picked.includes(a.id);
           return (
             <button key={a.id} type="button" className="pans" disabled={readOnly} aria-pressed={step.multi ? on : undefined} aria-keyshortcuts={i < 4 ? String(i + 1) : undefined}
-              onClick={() => (step.multi ? setPicked(toggle(answers, picked, a.id)) : onAnswer(step.id, [a.id]))}>
+              onClick={() => (step.multi ? onPick(toggle(answers, picked, a.id)) : onAnswer(step.id, [a.id]))}>
               {i < 4 && <span className="kbd" aria-hidden="true">{i + 1}</span>}
               <span><b>{step.multi && <span className={`pbox${on ? ' on' : ''}`}>{on && <Icon name="check" />}</span>}{a.label}{tag(a)}</b>{a.detail && <small>{a.detail}</small>}</span>
             </button>
@@ -109,7 +107,7 @@ export function PlaybookBar(p: PlaybookBarProps) {
       {walk.steps.filter(s => s.drift).map(s => <div key={s.step.id} className="pdrift"><Icon name="tri" />{s.step.title}: changed outside the playbook</div>)}
       {walk.current && (
         <>
-          <Question key={walk.current.step.id} sv={walk.current} readOnly={p.readOnly} showData={p.showData} expectedIds={p.expected?.[walk.current.step.id] ?? []} onAnswer={p.onAnswer} onLook={p.onLook} />
+          <Question key={walk.current.step.id} sv={walk.current} readOnly={p.readOnly} showData={p.showData} picked={p.picked} expectedIds={p.expected?.[walk.current.step.id] ?? []} onPick={p.onPick} onAnswer={p.onAnswer} onLook={p.onLook} />
           {p.showData && <Button small icon="check" disabled={p.readOnly} onClick={p.onAcceptAll}>Accept the data's answers</Button>}
         </>
       )}
