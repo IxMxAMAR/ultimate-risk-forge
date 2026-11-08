@@ -8,6 +8,7 @@ import { FlagsPanel } from '../ui/console/FlagsPanel';
 import { TopBar } from '../ui/console/TopBar';
 import { DisputesTab, type DisputesMode } from '../ui/console/DisputesTab';
 import { IconSprite } from '../ui/Icon';
+import { ForgeModal } from '../ui/forge/ForgeModal';
 import { ReportPage } from '../ui/report/ReportPage';
 import { AppProvider, useApp } from './AppContext';
 
@@ -55,6 +56,7 @@ function Page() {
           </div>
         </>
       )}
+      {state.forgeOpen && <ForgeModal />}
     </div>
   );
 }
