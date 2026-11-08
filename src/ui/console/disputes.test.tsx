@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { describe, expect, it } from 'vitest';
@@ -153,7 +153,11 @@ describe('Disputes tab', () => {
     render(<App store={store} />);
     await screen.findByText('Dispute rate by month of purchase');
     expect(bars().length).toBeGreaterThan(0);
-    expect(document.querySelectorAll('.is-evidence')).toHaveLength(0);
+    await waitFor(() => expect(document.querySelector('.flags .flag.sel')).not.toBeNull());
+    const first = viewOf(HARD).flags.find(f => f.state === 'raised')!;
+    const lit = [...document.querySelectorAll('.is-evidence')].map(e => e.getAttribute('data-evidence-id'));
+    expect(lit.length).toBeGreaterThan(0);
+    for (const id of lit) expect(first.evidence.ids).toContain(id);
     window.location.hash = '';
   });
 });

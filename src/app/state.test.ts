@@ -27,6 +27,14 @@ describe('reducer', () => {
     expect(active(s).activity.at(-1)!.what).toBe('Sam reopened “Rate hidden”');
   });
 
+  it('set-look sets the look-at ids; opening a case, selecting a flag or moving between flags clears them', () => {
+    const looking = reducer(base(), { type: 'set-look', ids: ['kpi:rate-30d'] });
+    expect(looking.look).toEqual(['kpi:rate-30d']);
+    expect(reducer(looking, { type: 'open-case', code: 'PD-009R-HF' }).look).toBeNull();
+    expect(reducer(looking, { type: 'select-flag', id: 'a' }).look).toBeNull();
+    expect(reducer(looking, { type: 'move-flag', dir: 1, ids: ['a', 'b'] }).look).toBeNull();
+  });
+
   it('keeps the note when state changes', () => {
     let s = reducer(base(), { type: 'set-note', id: 'f1', note: 'n' });
     s = reducer(s, { type: 'set-flag-state', id: 'f1', state: 'confirmed', title: 'T', now: NOW });

@@ -76,8 +76,10 @@ function Compare({ walk, expected }: { walk: Walk; expected: PlaybookAnswers }) 
 
 export function PlaybookBar(p: PlaybookBarProps) {
   const { walk, conclusion } = p;
-  const step = Math.min(walk.answered + 1, walk.total);
-  const remaining = walk.total - walk.answered;
+  const live = walk.steps.filter(s => s.status !== 'skipped');
+  const at = walk.current ? live.findIndex(s => s.step.id === walk.current!.step.id) : live.length;
+  const step = Math.min(at + 1, walk.total);
+  const remaining = walk.total - at;
 
   if (p.collapsed) {
     return (

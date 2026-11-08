@@ -61,7 +61,7 @@ function Page() {
               <CaseList />
               <DataTabs />
             </nav>
-            <Center />
+            <Center key={state.activeCode} />
             <Side />
           </div>
         </>

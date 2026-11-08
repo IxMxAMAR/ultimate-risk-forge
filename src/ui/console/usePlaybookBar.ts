@@ -27,7 +27,10 @@ export function usePlaybookBar(): PlaybookBarProps | null {
   const answers: PlaybookAnswers = cs?.playbook?.answers ?? {};
   const expected = useMemo(() => (pb && view && !hidden ? expectedPath(pb, view) : null), [pb, view, hidden]);
 
-  const w = pb && view ? reopened(walk(pb, view, answers), editing) : null;
+  const base = pb && view ? walk(pb, view, answers) : null;
+  // A reopened step that is no longer done (a cascade cleared it) is forgotten.
+  if (editing !== null && !base?.steps.some(s => s.step.id === editing && s.status === 'done')) setEditing(null);
+  const w = base ? reopened(base, editing) : null;
   const current = w?.current ?? null;
   const picked = current ? (pick.step === current.step.id ? pick.ids : current.chosen) : [];
   const now = () => new Date().toISOString();
@@ -35,6 +38,7 @@ export function usePlaybookBar(): PlaybookBarProps | null {
   const answer = (stepId: string, chosen: string[]) => {
     if (!pb || !view || !cs || !w || decided) return;
     setEditing(null);
+    setPick({ step: '', ids: [] });
     const sv = w.steps.find(s => s.step.id === stepId);
     const stored = answers[stepId];
     if (!sv || (stored && sameSet(stored, chosen))) return;
@@ -46,6 +50,7 @@ export function usePlaybookBar(): PlaybookBarProps | null {
   const acceptAll = () => {
     if (!pb || !view || decided || hidden) return;
     setEditing(null);
+    setPick({ step: '', ids: [] });
     let at = answers;
     const flagStates: FlagStateMap = {};
     let n = 0;
@@ -71,7 +76,7 @@ export function usePlaybookBar(): PlaybookBarProps | null {
     dispatch({ type: 'set-decision', decision: { action, keep, release: held - keep, reviewDate }, held, reason: '', trigger: view.forged.trigger.kind, now: now() });
   };
 
-  const open = !!current && !decided && !state.forgeOpen;
+  const open = !!current && !decided && !state.forgeOpen && !(cs?.playbook?.collapsed ?? false);
   const key = (n: number) => () => {
     const option = current?.answers[n];
     if (!open || !current || !option) return;

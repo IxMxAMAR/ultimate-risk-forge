@@ -4,10 +4,9 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { App } from '../../app/App';
 import { deriveCase } from '../../app/derive';
 import { RULES_V1 } from '../../domain/ruleset';
-import { actionLabel } from '../../domain/labels';
 import { STARTER_CODES } from '../../forge/starters';
 import { newCaseState, openStore, type CaseState } from '../../persist/db';
-import { answerStep, expectedPath } from '../../playbooks/engine';
+import { expectedPath } from '../../playbooks/engine';
 
 const CODE = STARTER_CODES[1];
 const NOW = '2026-11-08T10:00:00.000Z';
@@ -112,42 +111,145 @@ describe('playbook in the console', () => {
     expect(document.querySelector('[data-evidence-id="kpi:rate-30d"]')).not.toHaveClass('is-evidence');
   });
 
-  it('Accept all answers every step, and the suggestion equals the ending', async () => {
+  it('Accept all answers every step, confirms the five flags and the suggestion equals the ending', async () => {
     const user = userEvent.setup();
     await open();
     await user.click(within(bar()).getByRole('button', { name: "Accept the data's answers" }));
-    const fresh = viewOf();
-    const expected = expectedPath(fresh.playbook!, fresh);
-    let answers = {};
-    const flagStates: CaseState['flagStates'] = {};
-    for (const [id, chosen] of Object.entries(expected)) {
-      const next = answerStep(fresh.playbook!, fresh, answers, id, chosen);
-      answers = next.answers;
-      for (const [flag, state] of Object.entries(next.flagStates)) flagStates[flag] = { state, note: '' };
-    }
-    expect(await within(log()).findByText(`Analyst accepted the data's answers (${Object.keys(expected).length} steps)`)).toBeInTheDocument();
-    const ending = viewOf(c => ({ ...c, flagStates, playbook: { answers, collapsed: false } })).suggestion;
-    expect(within(bar()).getByText(ending.summary)).toBeInTheDocument();
-    const sugg = document.querySelector('.decision .sugg')!;
-    expect(sugg).toHaveTextContent(actionLabel(ending.action, viewOf().forged.trigger.kind));
-    expect(sugg).toHaveTextContent(ending.basis);
+    expect(await within(log()).findByText("Analyst accepted the data's answers (6 steps)")).toBeInTheDocument();
+    // PD-009R-HF: the expected path (jump yes, hidden yes, Mastercard 3%+ and Visa, refunds yes, not explained) confirms all five flags.
+    expect(screen.getByText('5 confirmed')).toBeInTheDocument();
+    expect(screen.getByText('0 dismissed')).toBeInTheDocument();
+    const basis = document.querySelector('.decision .sugg small')!.textContent!;
+    expect(basis).not.toBe('');
+    expect(document.querySelector('.pconc')).toHaveTextContent(basis);
   });
 
-  it('shows nothing of the data, conclusion or expected path in practice before deciding', async () => {
+  it('shows nothing of the data, conclusion or expected path in practice before deciding, at every step', async () => {
     const user = userEvent.setup();
     await open(practice);
-    await user.keyboard('11');
+    const suggestion = viewOf().suggestion;
+    const noLeak = () => {
+      expect(bar()).toBeInTheDocument();
+      expect(within(bar()).queryByRole('button', { name: 'Collapse' })).not.toBeNull();
+      const html = document.body.innerHTML;
+      expect(html).not.toMatch(/Data says|Accept the data|Use this decision|Expected:/);
+      expect(html).not.toContain(suggestion.summary);
+      expect(html).not.toContain(suggestion.basis);
+      for (const el of document.body.querySelectorAll('[aria-label],[title]')) {
+        expect(`${el.getAttribute('aria-label')} ${el.getAttribute('title')}`).not.toMatch(/Data says|Accept|Use this decision/);
+      }
+    };
+    noLeak();
+    expect(within(bar()).getByText('Did sales jump recently?')).toBeInTheDocument();
     await user.keyboard('1');
+    await within(bar()).findByText('Step 2 of 6');
+    noLeak();
+    await user.keyboard('1');
+    await within(bar()).findByText('Step 3 of 6');
+    noLeak();
+    await user.keyboard('4');
     await user.keyboard('{Enter}');
     await user.keyboard('222');
     await within(bar()).findByText(/All steps answered/);
-    const html = document.body.innerHTML;
-    const suggestion = viewOf().suggestion;
-    expect(html).not.toMatch(/Data says|Accept|Use this decision/);
-    expect(html).not.toContain(suggestion.summary);
-    expect(html).not.toContain(suggestion.basis);
-    expect(html).not.toContain('Expected:');
-    expect(html).toContain('Hidden in practice mode');
+    noLeak();
+    expect(document.body.innerHTML).toContain('Hidden in practice mode');
+  });
+
+  it('reads Step 1 of 6 for a reopened first step after three answers', async () => {
+    const user = userEvent.setup();
+    await open();
+    await user.keyboard('11');
+    await user.keyboard('4');
+    await user.keyboard('{Enter}');
+    expect(await within(bar()).findByText('Step 4 of 6')).toBeInTheDocument();
+    expect(within(bar()).getByText('~2 min')).toBeInTheDocument();
+    await user.click(within(bar()).getByRole('button', { name: 'Sales jump' }));
+    expect(within(bar()).getByText('Step 1 of 6')).toBeInTheDocument();
+    expect(within(bar()).getByText('~3 min')).toBeInTheDocument();
+  });
+
+  it('forgets a reopened step when another case opens', async () => {
+    const user = userEvent.setup();
+    const other = STARTER_CODES[2];
+    const store = await openStore(`playbook-flow-${++n}`);
+    await store.put(newCaseState(CODE, false, NOW));
+    await store.put({ ...newCaseState(other, false, NOW), playbook: { answers: { jump: ['yes'] }, collapsed: false } });
+    window.location.hash = `#/case/${CODE}`;
+    render(<App store={store} />);
+    await screen.findByRole('region', { name: 'Playbook' });
+    await user.keyboard('1');
+    await within(bar()).findByText('Step 2 of 6');
+    await user.click(within(bar()).getByRole('button', { name: 'Sales jump' }));
+    expect(within(bar()).getByText('Step 1 of 6')).toBeInTheDocument();
+    await user.click(document.querySelector<HTMLElement>('button.case:not(.active)')!);
+    expect(await within(bar()).findByText('Step 2 of 6')).toBeInTheDocument();
+  });
+
+  it('drops unsent picks when Accept all answers the step, so a reopened step shows the stored answer', async () => {
+    const user = userEvent.setup();
+    await open();
+    const fresh = viewOf();
+    const stored = expectedPath(fresh.playbook!, fresh).brands!;
+    const brands = fresh.playbook!.steps.find(s => s.id === 'brands')!.answers(fresh);
+    const stray = brands.findIndex((a, i) => i < 4 && !a.exclusive && !stored.includes(a.id));
+    expect(stray).toBeGreaterThanOrEqual(0);
+    await user.keyboard('11');
+    await user.keyboard(String(stray + 1));
+    await user.click(within(bar()).getByRole('button', { name: "Accept the data's answers" }));
+    await within(bar()).findByRole('button', { name: 'Use this decision' });
+    await user.click(within(bar()).getByRole('button', { name: 'Card brands' }));
+    for (const a of brands) {
+      expect(within(bar()).getByText(a.label, { selector: 'b' }).closest('button')).toHaveAttribute('aria-pressed', String(stored.includes(a.id)));
+    }
+  });
+
+  it('ignores keys 1-4 and Enter while the bar is collapsed', async () => {
+    const user = userEvent.setup();
+    await open();
+    await user.click(within(bar()).getByRole('button', { name: 'Collapse' }));
+    await user.keyboard('1');
+    await user.keyboard('{Enter}');
+    expect(within(log()).queryByText(/answered/)).toBeNull();
+    await user.click(within(bar()).getByRole('button', { name: 'Expand' }));
+    expect(within(bar()).getByText('Step 1 of 6')).toBeInTheDocument();
+  });
+
+  it('ignores 1 while the Forge modal is open', async () => {
+    const user = userEvent.setup();
+    await open();
+    await user.keyboard('11');
+    await within(bar()).findByText('Step 3 of 6');
+    await user.keyboard('4');
+    await user.click(screen.getByRole('button', { name: /New case/ }));
+    await screen.findByRole('dialog');
+    await user.keyboard('1');
+    await user.keyboard('{Escape}');
+    expect(await within(bar()).findByText('Step 3 of 6')).toBeInTheDocument();
+    expect(within(bar()).getByRole('button', { name: /Mastercard 3%\+/ })).toHaveAttribute('aria-pressed', 'false');
+    expect(within(bar()).getByRole('button', { name: /^None/ })).toHaveAttribute('aria-pressed', 'true');
+    expect(within(log()).getAllByText(/answered/)).toHaveLength(2);
+  });
+
+  it('does not answer the step when Enter is pressed while typing in the hold field', async () => {
+    const user = userEvent.setup();
+    await open();
+    await user.keyboard('11');
+    await within(bar()).findByText('Step 3 of 6');
+    await user.keyboard('4');
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Decision' }), 'partial-release');
+    await user.click(screen.getByRole('textbox', { name: 'Hold amount in dollars' }));
+    await user.keyboard('{Enter}');
+    expect(within(log()).getAllByText(/answered/)).toHaveLength(2);
+    expect(within(bar()).getByText('Step 3 of 6')).toBeInTheDocument();
+  });
+
+  it('Use this decision saves the suggestion on a normal case', async () => {
+    const user = userEvent.setup();
+    await open();
+    await user.click(within(bar()).getByRole('button', { name: "Accept the data's answers" }));
+    await user.click(await within(bar()).findByRole('button', { name: 'Use this decision' }));
+    expect(await within(log()).findByText(/changed the decision to/)).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Decision' })).toHaveValue('suggestion');
   });
 
   it('shows the comparison in practice once decided, and decided cases ignore keys 1-4', async () => {
