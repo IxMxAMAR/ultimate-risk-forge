@@ -32,7 +32,7 @@ interface Tuning {
 const TUNING: Record<Difficulty, Tuning> = {
   easy: { growth: 6, rates: { visa: 0.027, mastercard: 0.042, other: 0.025 }, soFar: { sep: 0.008, oct: 0.002 }, ageMonths: 3, adCampaign: false },
   normal: { growth: 5, rates: { visa: 0.018, mastercard: 0.031, other: 0.02 }, soFar: { sep: 0.006, oct: 0.0015 }, ageMonths: 4, adCampaign: false },
-  hard: { growth: 4, rates: { visa: 0.016, mastercard: 0.0305, other: 0.012 }, soFar: { sep: 0.004, oct: 0.001 }, ageMonths: 5, adCampaign: true },
+  hard: { growth: 4, rates: { visa: 0.016, mastercard: 0.032, other: 0.012 }, soFar: { sep: 0.004, oct: 0.001 }, ageMonths: 5, adCampaign: true },
 };
 
 const AD_DOCS: EvidenceDoc[] = [{ kind: 'ad-campaign-receipts', title: 'Seller file · ad receipts (2)', note: 'The growth matches a paid ad campaign the seller documented (receipts on file).' }];

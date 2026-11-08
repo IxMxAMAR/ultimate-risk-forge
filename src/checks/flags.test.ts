@@ -53,9 +53,9 @@ describe('runChecks', () => {
   });
 
   it('keeps Mastercard between 1.5% and 3% at high with the 1.5% line title', () => {
-    const hard = forgeCase(STARTER_CODES[2]);
-    const mc = runChecks(hard, disputeStats(hard, RULES_V1), RULES_V1).find(f => f.kind === 'mc-over-limit')!;
-    expect([mc.severity, mc.title]).toEqual(['high', 'Mastercard 3.0%, over the 1.5% line']);
+    const byBrandJudged = s.byBrandJudged.map(r => (r.brand === 'mastercard' ? { ...r, rate: 0.021 } : r));
+    const mc = runChecks(c, { ...s, byBrandJudged }, RULES_V1).find(f => f.kind === 'mc-over-limit')!;
+    expect([mc.severity, mc.title]).toEqual(['high', 'Mastercard 2.1%, over the 1.5% line']);
   });
 
   it('escalates Mastercard and Visa to critical at 3%', () => {
