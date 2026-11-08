@@ -6,6 +6,7 @@ import { deriveCase } from '../../app/derive';
 import { RULES_V1 } from '../../domain/ruleset';
 import type { Flag } from '../../domain/types';
 import { STARTER_CODES } from '../../forge/starters';
+import { startingKeep } from './DecisionPanel';
 import { newCaseState, openStore, type CaseState, type Store } from '../../persist/db';
 
 const CODE = STARTER_CODES[1];
@@ -209,8 +210,26 @@ describe('decision panel', () => {
     expect(screen.getByRole('textbox', { name: 'Hold amount in dollars' })).toHaveValue(String(Math.round(held / 2 / 100000) * 1000));
   });
 
+  it('starts a hidden smaller hold from half the hold too', async () => {
+    const user = userEvent.setup();
+    await open(c => ({ ...c, practice: true }));
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Decision' }), 'approve-smaller-hold');
+    const held = viewOf().forged.trigger.heldAmount;
+    expect(screen.getByRole('textbox', { name: 'Hold amount in dollars' })).toHaveValue(String(Math.round(held / 2 / 100000) * 1000));
+  });
+
   it('shows the suggestion once a practice case is decided', async () => {
     await open(c => ({ ...c, practice: true, decidedAt: '2026-11-08T11:00:00.000Z' }));
     await waitFor(() => expect(screen.getByText(viewOf().suggestion.basis)).toBeInTheDocument());
+  });
+});
+
+describe('startingKeep', () => {
+  it('stays strictly between 0 and the held amount', () => {
+    expect(startingKeep(100_000, 0)).toBe(50_000);
+    expect(startingKeep(150_000, 0)).toBe(100_000);
+    expect(startingKeep(4_200_000, 0)).toBe(2_100_000);
+    expect(startingKeep(4_200_000, 300_000)).toBe(300_000);
+    expect(startingKeep(4_200_000, 4_200_000)).toBe(2_100_000);
   });
 });

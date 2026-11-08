@@ -15,6 +15,13 @@ import { useShortcuts } from '../useShortcuts';
 const ACTIONS: ActionKind[] = ['approve', 'approve-smaller-hold', 'partial-release', 'deny', 'hold-payouts', 'refund-buyers', 'block', 'escalate'];
 const HELD_IN_FULL: ActionKind[] = ['deny', 'hold-payouts', 'escalate', 'block', 'refund-buyers'];
 
+// A partial hold between 0 and `held`: the analyst's own keep, else half the hold to the nearest $1,000 (or to the cent when that reaches 0 or `held`).
+export function startingKeep(held: Cents, own: Cents): Cents {
+  if (own > 0 && own < held) return own;
+  const rounded = Math.round(held / 2 / 100000) * 100000;
+  return rounded > 0 && rounded < held ? rounded : Math.round(held / 2);
+}
+
 export function DecisionPanel() {
   const { state, dispatch, view } = useApp();
   const cs = activeOf(state);
@@ -41,17 +48,14 @@ export function DecisionPanel() {
     dispatch({ type: 'set-decision', decision: { action: d.action, keep: d.keep, release: held - d.keep, reviewDate: d.reviewDate }, held, reason: why, trigger, now: new Date().toISOString() });
   };
   // While the suggestion is hidden, the starting hold comes only from the analyst's own decision, never from the suggestion or exposure.
-  const ownKeep = (): Cents => {
-    const own = cs.decision?.keep ?? 0;
-    return own > 0 && own < held ? own : Math.round(held / 2 / 100000) * 100000 || Math.round(held / 2);
-  };
+  const ownKeep = (): Cents => startingKeep(held, cs.decision?.keep ?? 0);
   const chooseAction = (value: string) => {
     if (value === 'suggestion') { setReason(''); commit(suggestion, ''); return; }
     const action = value as ActionKind;
     const smaller = Math.min(held, holdToKeep(exposure.high, RULES_V1));
     const keep: Cents = HELD_IN_FULL.includes(action) ? held
       : action === 'partial-release' ? (hidden ? ownKeep() : shown.keep > 0 && shown.keep < held ? shown.keep : smaller)
-      : action === 'approve-smaller-hold' ? smaller : 0;
+      : action === 'approve-smaller-hold' ? (hidden ? ownKeep() : smaller) : 0;
     commit({ action, keep, release: held - keep, reviewDate: action === 'approve' ? forged.asOf : reviewDateFrom(forged.asOf) }, reason);
   };
   const commitHold = () => {
