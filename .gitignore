@@ -7,3 +7,10 @@ qa-shots/
 
 # local working docs
 docs/
+
+# editor
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.local
+dist-ssr
