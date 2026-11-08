@@ -33,6 +33,9 @@
 .type.soon{opacity:.55;cursor:not-allowed}
 .type.soon:hover{border-color:var(--border);background:var(--card)}
 .type.soon.special:hover{border-color:var(--border-strong)}
+.type.off{opacity:.4;cursor:default}
+.type.off:hover{border-color:var(--border);background:var(--card)}
+.type.off.sel:hover{border-color:var(--accent);background:var(--accent-soft)}
 .tags .soon-tag{background:transparent;border:1px solid var(--border-strong);color:var(--fg3)}
 
 /* settings: one shared label column so every control starts on the same edge */

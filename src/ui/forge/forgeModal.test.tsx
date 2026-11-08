@@ -1,6 +1,6 @@
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../../app/App';
 import { CaseCodeError, decodeCaseCode, encodeCaseCode } from '../../domain/caseCode';
 import { forgeCase } from '../../forge/forge';
@@ -53,9 +53,16 @@ describe('Forge modal', () => {
     expect(codeInput().value).toBe(before);
     expect(within(dialog).getByRole('button', { name: /Hidden by growth/ })).toHaveAttribute('aria-pressed', 'true');
     await user.click(within(dialog).getByRole('button', { name: 'Disputes' }));
-    expect(cards(dialog).map(c => c.querySelector('b')!.textContent)).toEqual(['Hidden by growth', 'Refund-for-hire ring', 'Billing time-zone bug']);
-    await user.click(within(dialog).getByRole('button', { name: 'All 12' }));
     expect(cards(dialog)).toHaveLength(12);
+    expect(cards(dialog).filter(c => c.classList.contains('off')).length).toBe(9);
+    expect(cards(dialog).filter(c => !c.classList.contains('off')).map(c => c.querySelector('b')!.textContent)).toEqual(['Hidden by growth', 'Refund-for-hire ring', 'Billing time-zone bug']);
+    const dimmed = within(dialog).getByRole('button', { name: /Surprise me/ });
+    expect(dimmed).toHaveAttribute('aria-disabled', 'true');
+    expect(dimmed).toHaveAttribute('tabindex', '-1');
+    await user.click(dimmed);
+    expect(within(dialog).getByRole('button', { name: /Hidden by growth/ })).toHaveAttribute('aria-pressed', 'true');
+    await user.click(within(dialog).getByRole('button', { name: 'All 12' }));
+    expect(cards(dialog).some(c => c.classList.contains('off'))).toBe(false);
   });
 
   it('builds a code from Hard, Large and the dice', async () => {
@@ -140,6 +147,49 @@ describe('Forge modal', () => {
     await user.keyboard('{Enter}');
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(window.location.hash).toBe(`#/case/${code}`);
+  });
+
+  it('submits with Enter as soon as the modal opens', async () => {
+    const { user } = await openModal();
+    const code = codeInput().value;
+    await user.keyboard('{Enter}');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(window.location.hash).toBe(`#/case/${code}`);
+  });
+
+  it('leaves Enter to Cancel, so it closes without forging', async () => {
+    const { user, dialog } = await openModal();
+    within(dialog).getByRole('button', { name: 'Cancel' }).focus();
+    await user.keyboard('{Enter}');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(window.location.hash).toBe('');
+  });
+
+  it('wraps Tab and Shift+Tab inside the dialog', async () => {
+    const { user, dialog } = await openModal();
+    const items = [...dialog.querySelectorAll<HTMLElement>('button:not([disabled]):not([tabindex="-1"]), input')];
+    items.at(-1)!.focus();
+    await user.tab();
+    expect(items[0]).toHaveFocus();
+    await user.tab({ shift: true });
+    expect(items.at(-1)).toHaveFocus();
+  });
+
+  it('returns focus to the New case button after closing', async () => {
+    const { user } = await openModal();
+    await user.keyboard('{Escape}');
+    expect(screen.getByRole('button', { name: /New case/ })).toHaveFocus();
+  });
+
+  it('copies the canonical code and disables Copy while the code has an error', async () => {
+    const { user, dialog } = await openModal();
+    const writeText = vi.fn(async () => {});
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    const code = codeInput().value;
+    await user.click(within(dialog).getByRole('button', { name: 'Copy code' }));
+    expect(writeText).toHaveBeenCalledWith(code);
+    await user.type(codeInput(), 'X');
+    expect(within(dialog).getByRole('button', { name: 'Copy code' })).toBeDisabled();
   });
 
   it('closes with Escape, Cancel and the close button, and leaves the #/forge route', async () => {
