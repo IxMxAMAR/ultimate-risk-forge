@@ -1,5 +1,5 @@
 export const RULES_V1 = {
-  version: '1.0',
+  version: '1.1',
   judgedAfterDays: 60,
   windowDays: 30,
   minBrandPayments: 30,

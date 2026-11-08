@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import { RULES_V1 } from '../domain/ruleset';
+import type { Flag } from '../domain/types';
 import { newCaseState } from '../persist/db';
-import { reducer, type AppState } from './state';
+import { reducer, type AppAction, type AppState } from './state';
 
 const NOW = '2026-11-08T10:00:00.000Z';
 const base = (): AppState => ({
@@ -115,5 +117,47 @@ describe('reducer', () => {
     const s = { ...base(), view: 'report' as const, selectedFlagId: 'a', tab: 'owners' as const };
     expect(reducer(s, { type: 'open-case', code: 'PD-009R-HF' })).toMatchObject({ view: 'console', tab: 'disputes', selectedFlagId: null });
     expect(reducer(s, { type: 'open-case', code: 'NOPE' })).toBe(s);
+  });
+
+  describe('playbook', () => {
+    const step = (s: AppState, over: Partial<Extract<AppAction, { type: 'answer-step' }>> = {}) => reducer(s, {
+      type: 'answer-step', answers: { jump: ['a'] }, flagStates: { hidden: 'confirmed', 'analyst-1': 'dismissed' }, line: 'Sam answered “Q”: A', now: NOW, ...over,
+    });
+
+    it('stores answers, applies rule flag states, keeps notes and logs one line', () => {
+      const analyst: Flag = { id: 'analyst-1', kind: 'analyst', severity: 'high', title: 'T', why: '', evidence: { tab: 'disputes', ids: [] }, state: 'confirmed', note: '', addedBy: 'analyst' };
+      let s = reducer(base(), { type: 'set-note', id: 'hidden', note: 'n' });
+      s = { ...s, cases: [{ ...active(s), analystFlags: [analyst] }] };
+      s = step(s);
+      expect(active(s).playbook).toEqual({ answers: { jump: ['a'] }, collapsed: false });
+      expect(active(s).flagStates.hidden).toEqual({ state: 'confirmed', note: 'n' });
+      expect(active(s).flagStates['analyst-1']).toBeUndefined();
+      expect(active(s).analystFlags[0]!.state).toBe('confirmed');
+      expect(active(s).activity).toEqual([{ ts: NOW, who: 'Sam', what: 'Sam answered “Q”: A' }]);
+    });
+
+    it('logs nothing when the line is null and keeps the collapsed flag', () => {
+      let s = reducer(base(), { type: 'set-playbook-collapsed', collapsed: true });
+      s = step(s, { line: null });
+      expect(active(s).playbook).toEqual({ answers: { jump: ['a'] }, collapsed: true });
+      expect(active(s).activity).toEqual([]);
+    });
+
+    it('persists the collapsed flag', () => {
+      const s = reducer(base(), { type: 'set-playbook-collapsed', collapsed: true });
+      expect(active(s).playbook).toEqual({ answers: {}, collapsed: true });
+    });
+
+    it('ignores both actions once decided', () => {
+      const decided = reducer(base(), { type: 'mark-decided', now: NOW, score: null, decision: DECISION });
+      expect(step(decided)).toEqual(decided);
+      expect(reducer(decided, { type: 'set-playbook-collapsed', collapsed: true })).toEqual(decided);
+    });
+
+    it('stores the rules version when decided', () => {
+      const decided = reducer(base(), { type: 'mark-decided', now: NOW, score: null, decision: DECISION });
+      expect(active(decided).rulesVersion).toBe(RULES_V1.version);
+      expect(RULES_V1.version).toBe('1.1');
+    });
   });
 });

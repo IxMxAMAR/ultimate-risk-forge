@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { RULES_V1 } from '../domain/ruleset';
 import { forgeCase } from '../forge/forge';
 import { STARTER_CODES } from '../forge/starters';
 import { openingActivity } from './opening';
@@ -9,7 +10,7 @@ describe('openingActivity', () => {
     const now = '2026-11-08T10:00:00.000Z';
     expect(openingActivity(forged, 4, now)).toEqual([
       { ts: now, who: 'Forge', what: `Case ${forged.displayId} opened by the Forge` },
-      { ts: now, who: 'Rules v1.0', what: 'Checks ran: 4 flags raised' },
+      { ts: now, who: `Rules v${RULES_V1.version}`, what: 'Checks ran: 4 flags raised' },
     ]);
   });
 });

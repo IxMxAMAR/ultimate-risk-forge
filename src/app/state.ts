@@ -1,6 +1,8 @@
 import { actionLabel } from '../domain/labels';
+import { RULES_V1 } from '../domain/ruleset';
 import type { ActivityEntry, DataTab, Decision, Flag, Trigger } from '../domain/types';
 import type { CaseState } from '../persist/db';
+import type { PlaybookAnswers } from '../playbooks/types';
 import type { Score } from '../practice/score';
 
 export interface AppState {
@@ -24,6 +26,8 @@ export type AppAction =
   | { type: 'set-message-read'; read: boolean }
   | { type: 'set-second-reviewer'; name: string }
   | { type: 'mark-decided'; now: string; score: Score | null; decision: Decision }
+  | { type: 'answer-step'; answers: PlaybookAnswers; flagStates: Record<string, Flag['state']>; line: string | null; now: string }
+  | { type: 'set-playbook-collapsed'; collapsed: boolean }
   | { type: 'forge-open'; open: boolean }
   | { type: 'set-search'; text: string }
   | { type: 'set-analyst'; name: string };
@@ -90,9 +94,22 @@ export function reducer(s: AppState, a: AppAction): AppState {
     case 'set-seller-message': return onOpen(s, c => ({ ...c, sellerMessage: a.text }));
     case 'set-message-read': return onOpen(s, c => ({ ...c, messageRead: a.read }));
     case 'set-second-reviewer': return onOpen(s, c => ({ ...c, secondReviewer: a.name }));
+    case 'answer-step':
+      return onOpen(s, c => {
+        const flagStates = { ...c.flagStates };
+        for (const [id, state] of Object.entries(a.flagStates)) {
+          if (!c.analystFlags.some(f => f.id === id)) flagStates[id] = { state, note: flagStates[id]?.note ?? '' };
+        }
+        return {
+          ...c, flagStates, playbook: { answers: a.answers, collapsed: c.playbook?.collapsed ?? false },
+          activity: a.line === null ? c.activity : log(c, s.analyst, a.now, a.line),
+        };
+      });
+    case 'set-playbook-collapsed':
+      return onOpen(s, c => ({ ...c, playbook: { answers: c.playbook?.answers ?? {}, collapsed: a.collapsed } }));
     case 'mark-decided':
       return onActive(s, c => (c.decidedAt !== null ? c : {
-        ...c, decidedAt: a.now, score: a.score, decision: c.decision ?? a.decision,
+        ...c, decidedAt: a.now, score: a.score, rulesVersion: RULES_V1.version, decision: c.decision ?? a.decision,
         activity: log(c, s.analyst, a.now, `${s.analyst} signed the report.`, `${s.analyst} marked the case decided.`),
       }));
     case 'forge-open': return { ...s, forgeOpen: a.open };

@@ -1,5 +1,6 @@
 import { openDB } from 'idb';
 import type { ActivityEntry, Decision, Flag } from '../domain/types';
+import type { PlaybookAnswers } from '../playbooks/types';
 import type { Score } from '../practice/score';
 
 export interface CaseState {
@@ -11,6 +12,8 @@ export interface CaseState {
   secondReviewer: string;
   activity: ActivityEntry[];
   decidedAt: string | null; score: Score | null;
+  playbook?: { answers: PlaybookAnswers; collapsed: boolean };
+  rulesVersion?: string;
 }
 export interface Settings { analystName: string }
 export interface Store {

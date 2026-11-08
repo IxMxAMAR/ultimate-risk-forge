@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { RULES_V1 } from '../domain/ruleset';
 import { STARTER_CODES } from '../forge/starters';
 import { newCaseState } from '../persist/db';
+import { HIDDEN_BY_GROWTH } from '../playbooks/hiddenByGrowth';
 import { deriveCase } from './derive';
 
 const NOW = '2026-11-08T10:00:00.000Z';
@@ -26,12 +27,20 @@ describe('deriveCase', () => {
     expect(v2.flags.at(-1)).toEqual(mine);
   });
 
-  it('suggests deny after two critical confirms', () => {
+  it('uses the playbook ending as the suggestion and follows the flags', () => {
     const cs = newCaseState(STARTER_CODES[1], true, NOW);
-    const crit = deriveCase(cs, RULES_V1).ruleFlags.filter(f => f.severity === 'critical');
-    expect(crit.length).toBeGreaterThanOrEqual(2);
-    expect(deriveCase(cs, RULES_V1).suggestion.action).not.toBe('deny');
-    const flagStates = Object.fromEntries(crit.slice(0, 2).map(f => [f.id, { state: 'confirmed' as const, note: '' }]));
-    expect(deriveCase({ ...cs, flagStates }, RULES_V1).suggestion.action).toBe('deny');
+    const v = deriveCase(cs, RULES_V1);
+    expect(v.playbook).toBe(HIDDEN_BY_GROWTH);
+    expect(v.suggestion).toEqual(HIDDEN_BY_GROWTH.ending(v, RULES_V1));
+    const flagStates = Object.fromEntries(v.ruleFlags.map(f => [f.id, { state: 'confirmed' as const, note: '' }]));
+    const v2 = deriveCase({ ...cs, flagStates }, RULES_V1);
+    expect(v2.suggestion).toEqual(HIDDEN_BY_GROWTH.ending(v2, RULES_V1));
+    expect(v2.suggestion).not.toEqual(v.suggestion);
+  });
+
+  it('derives states saved without a playbook', () => {
+    const cs = newCaseState(STARTER_CODES[1], true, NOW);
+    expect(cs.playbook).toBeUndefined();
+    expect(() => deriveCase(cs, RULES_V1)).not.toThrow();
   });
 });

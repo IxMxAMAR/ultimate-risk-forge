@@ -53,7 +53,7 @@ describe('report page', () => {
     expect(within(paper).getAllByText('$45,500').length).toBeGreaterThan(0);
     expect(within(paper).getAllByText('$20,500').length).toBeGreaterThan(0);
     expect(within(paper).getByText('Dec 15, 2026')).toBeInTheDocument();
-    expect(within(paper).getByText('The rules suggested “Deny, keep all $66,000.”')).toBeInTheDocument();
+    expect(within(paper).getByText(`The rules suggested “${deriveCase(decided(newCaseState(CODE, false, NOW)), RULES_V1).suggestion.summary}.”`)).toBeInTheDocument();
     expect(within(paper).getByText(/covers the worst case with a 7% buffer/)).toBeInTheDocument();
     expect(within(paper).getByText('4 confirmed · 1 dismissed')).toBeInTheDocument();
   });
@@ -138,14 +138,14 @@ describe('report page edge paths', () => {
     await open(c => ({
       ...decided(c),
       activity: [
-        { ts: NOW, who: 'Forge', what: 'Case opened.' }, { ts: NOW, who: 'Rules v1.0', what: 'Checks ran. 5 flags raised.' },
+        { ts: NOW, who: 'Forge', what: 'Case opened.' }, { ts: NOW, who: `Rules v${RULES_V1.version}`, what: 'Checks ran. 5 flags raised.' },
         { ts: NOW, who: 'Analyst', what: 'Analyst confirmed a flag.' },
       ],
     }));
     const rows = within(within(paperOf()).getByRole('region', { name: 'Audit trail' })).getAllByRole('row').slice(1).map(r => r.textContent);
     expect(rows).toHaveLength(4);
     expect(rows[1]).toContain('Checks ran. 5 flags raised.');
-    expect(rows[2]).toContain('Rules v1.0 suggested: Deny, keep all $66,000');
+    expect(rows[2]).toContain(`Rules v${RULES_V1.version} suggested: ${deriveCase(decided(newCaseState(CODE, false, NOW)), RULES_V1).suggestion.summary}`);
   });
 
   it('leaves the suggestion out of the page and the JSON until a practice case is decided', async () => {
@@ -162,7 +162,7 @@ describe('report page edge paths', () => {
       expect(json).not.toContain(text);
       expect(document.body.innerHTML).not.toContain(text);
     }
-    expect(document.body.innerHTML).not.toContain('Rules v1.0 suggested');
+    expect(document.body.innerHTML).not.toContain(`Rules v${RULES_V1.version} suggested`);
     delete (URL as { createObjectURL?: unknown }).createObjectURL;
     delete (URL as { revokeObjectURL?: unknown }).revokeObjectURL;
     vi.restoreAllMocks();
