@@ -40,7 +40,7 @@ const forged = {
 const e = exposure(stats, RULES_V1);
 const suggestion = { action: 'deny', keep: 4200000, release: 0, reviewDate: '2026-12-15', basis: '', summary: 'Deny, keep all $42,000' } as const;
 const view: CaseView = {
-  forged, stats, ruleFlags: [], exposure: e, playbook: null, suggestion,
+  forged, stats, ruleFlags: [], exposure: e, playbook: null, suggestion, reviewFirst: 0,
   flags: [flag('a', 'confirmed'), flag('b', 'confirmed'), flag('c', 'dismissed', 'Looks organic')],
 };
 const decision: Decision = { action: 'partial-release', keep: 2800000, release: 1400000, reviewDate: '2026-12-15' };
@@ -210,6 +210,23 @@ describe('buildReport path taken', () => {
     expect(r.recommendation.override).toBeNull();
     const signed = deriveCase({ ...old, rulesVersion: '1.1' }, RULES_V1);
     expect(signed.suggestion).toMatchObject({ action: 'partial-release', keep: 4200000, summary: 'Partial release, keep $42,000' });
+  });
+
+  it('names no release suggestion while a critical or high flag is open', () => {
+    const answers = { jump: ['yes'], hidden: ['no'], brands: ['none'], refunds: ['no'], explained: ['documented'], money: ['covers'] };
+    const others = ['mc-over-limit', 'visa-over-limit', 'refunds-low-disputes-high', 'young-account-fast-growth'];
+    const cs = {
+      ...open, playbook: { answers, collapsed: false },
+      flagStates: Object.fromEntries(others.map(id => [id, { state: 'dismissed' as const, note: '' }])),
+      decision: { action: 'deny', keep: 6400000, release: 0, reviewDate: '2026-12-15' } as Decision,
+    };
+    const pending = buildReport(deriveCase(cs, RULES_V1), cs, 'A', RULES_V1);
+    expect(pending.recommendation.override).toBeNull();
+    expect(pending.pathConclusion).toBeNull();
+    const reviewed = { ...cs, flagStates: { ...cs.flagStates, 'rate-hidden-by-growth': { state: 'dismissed' as const, note: '' } } };
+    const r = buildReport(deriveCase(reviewed, RULES_V1), reviewed, 'A', RULES_V1);
+    expect(r.recommendation.override?.suggested).toBe('Release all $64,000');
+    expect(r.pathConclusion).toBe('Release all $64,000');
   });
 
   it('shows the stored rules version', () => {

@@ -23,7 +23,7 @@ const STATE = `(() => ({
 }))()`;
 const PAGES = [
   ['console', '#/case/VT-G24B-KD', s => s.cases >= 3 && s.flags >= 1],
-  ['report', '#/case/VT-G24B-KD/report', s => s.paper > 0],
+  ['report', '#/case/VT-G24B-KD', s => s.cases >= 3 && s.flags >= 1 && s.answers >= 1, acceptThenReport],
   ['forge', '#/forge', s => s.dialog > 0 && s.rows > 0],
   ['console-step3', '#/case/VT-G24B-KD', s => s.cases >= 3 && s.flags >= 1 && s.answers >= 1, answerTwoSteps],
 ];
@@ -55,6 +55,16 @@ async function answerTwoSteps(page) {
     await waitFor(async () => (await current()) !== before, 5_000, 'next playbook step');
   }
   await waitFor(async () => (await current()).includes('Card brands'), 5_000, 'Card brands step');
+}
+
+// Accepts the data's answers, which reviews the flags, then opens the report with Build report.
+async function acceptThenReport(page) {
+  const read = async expression => (await page.send('Runtime.evaluate', { expression, returnByValue: true })).result.value;
+  const button = text => `[...document.querySelectorAll('button')].find(b => b.textContent.includes(${JSON.stringify(text)}))`;
+  await read(`${button("Accept the data's answers")}.click()`);
+  await waitFor(() => read(`!${button('Build report')}.disabled`), 5_000, 'Build report enabled');
+  await read(`${button('Build report')}.click()`);
+  await waitFor(() => read(`document.querySelectorAll('.paper').length > 0`), 5_000, 'report paper');
 }
 
 const freePort = () => new Promise((ok, fail) => {

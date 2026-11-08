@@ -45,6 +45,20 @@ describe('deriveCase', () => {
     expect(deriveCase({ ...cs, flagStates, decidedAt: NOW, rulesVersion: '1.1' }, RULES_V1).suggestion.summary).toBe('Partial release, keep $42,000');
   });
 
+  it('counts the critical and high flags still open while the suggestion releases the hold', () => {
+    const cs = newCaseState(STARTER_CODES[1], false, NOW);
+    const v = deriveCase(cs, RULES_V1);
+    expect(v.suggestion.action).toBe('approve');
+    expect(v.reviewFirst).toBe(3);
+    const risky = v.ruleFlags.filter(f => f.severity === 'critical' || f.severity === 'high');
+    const dismissed = deriveCase({ ...cs, flagStates: Object.fromEntries(risky.map(f => [f.id, { state: 'dismissed' as const, note: '' }])) }, RULES_V1);
+    expect(dismissed.flags.filter(f => f.state === 'raised').map(f => f.severity)).toEqual(['medium', 'medium']);
+    expect(dismissed.reviewFirst).toBe(0);
+    const confirmed = deriveCase({ ...cs, flagStates: { 'rate-hidden-by-growth': { state: 'confirmed', note: '' } } }, RULES_V1);
+    expect(confirmed.suggestion.action).toBe('partial-release');
+    expect(confirmed.reviewFirst).toBe(0);
+  });
+
   it('derives states saved without a playbook', () => {
     const cs = newCaseState(STARTER_CODES[1], true, NOW);
     expect(cs.playbook).toBeUndefined();

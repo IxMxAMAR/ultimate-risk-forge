@@ -31,7 +31,8 @@ export function buildReport(v: CaseView, cs: CaseState, analyst: string, rules: 
   const { forged, exposure, suggestion } = v;
   const held = forged.trigger.heldAmount;
   const d: Decision = cs.decision ?? suggestion;
-  const overridden = cs.decision !== null && (cs.decision.action !== suggestion.action || cs.decision.keep !== suggestion.keep);
+  // While critical or high flags are open no release is suggested, so there is nothing to override (ARCHITECTURE.md §4).
+  const overridden = cs.decision !== null && v.reviewFirst === 0 && (cs.decision.action !== suggestion.action || cs.decision.keep !== suggestion.keep);
   const keptPct = Math.round(d.keep / held * 100);
   const hidden = practiceOpen(cs);
   const rulesVersion = rulesVersionOf(cs, rules);
@@ -75,7 +76,7 @@ export function buildReport(v: CaseView, cs: CaseState, analyst: string, rules: 
       { title: 'Money-at-risk workings', page: 3 },
       ...forged.docs.map(doc => ({ title: doc.title, page: 4 })),
     ],
-    path, pathConclusion: played?.done && !hidden ? suggestion.summary : null,
+    path, pathConclusion: played?.done && !hidden && v.reviewFirst === 0 ? suggestion.summary : null,
     consistency: {
       past, current: { ref: forged.displayId, keptPct },
       ...(past.length ? consistency({ action: d.action, keptPct }, past) : { median: NaN, inLine: true, range: [keptPct, keptPct] as [number, number] }),

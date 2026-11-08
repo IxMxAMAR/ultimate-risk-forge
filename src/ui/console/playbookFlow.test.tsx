@@ -268,6 +268,18 @@ describe('playbook in the console', () => {
     expect(screen.getByRole('combobox', { name: 'Decision' })).toHaveValue('suggestion');
   });
 
+  it('offers no release at the end of the path while a critical flag is open again', async () => {
+    const reopened = (c: CaseState): CaseState => ({
+      ...c,
+      playbook: { answers: { jump: ['yes'], hidden: ['no'], brands: ['none'], refunds: ['no'], explained: ['documented'], money: ['covers'] }, collapsed: false },
+      flagStates: Object.fromEntries(['mc-over-limit', 'visa-over-limit', 'refunds-low-disputes-high', 'young-account-fast-growth'].map(id => [id, { state: 'dismissed' as const, note: '' }])),
+    });
+    expect(viewOf(reopened).suggestion.action).toBe('approve');
+    await open(reopened);
+    expect(within(bar()).getByText('All steps answered — make your call in the decision panel.')).toBeInTheDocument();
+    expect(within(bar()).queryByRole('button', { name: 'Use this decision' })).not.toBeInTheDocument();
+  });
+
   it('shows the comparison in practice once decided, and decided cases ignore keys 1-4', async () => {
     const user = userEvent.setup();
     await open(c => ({ ...practice(c), decidedAt: NOW }));

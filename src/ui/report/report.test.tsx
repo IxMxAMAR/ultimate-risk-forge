@@ -122,6 +122,18 @@ describe('report page', () => {
     expect(screen.queryByRole('article')).not.toBeInTheDocument();
     expect(screen.queryByText(/suggest/i)).not.toBeInTheDocument();
   });
+
+  it('asks for a decision first while critical or high flags are open and none is chosen', async () => {
+    await open(c => c);
+    expect(screen.getByText('Choose a decision in the console first')).toBeInTheDocument();
+    expect(screen.queryByRole('article')).not.toBeInTheDocument();
+  });
+
+  it('leaves the release suggestion out of a draft while critical or high flags are open', async () => {
+    await open(c => ({ ...c, decision: { action: 'deny', keep: 6600000, release: 0, reviewDate: '2026-12-15' } }));
+    expect(screen.getByRole('article', { name: 'Risk assessment report' })).not.toHaveTextContent(/suggested|Release all/);
+    expect(screen.getByText('Reason given where needed').previousElementSibling).toHaveClass('y');
+  });
 });
 
 const SMALL = encodeCaseCode({ version: 1, type: 'hidden-by-growth', difficulty: 'easy', size: 'small', seed: 7 });

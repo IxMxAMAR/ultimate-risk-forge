@@ -107,7 +107,7 @@ const money: Step = {
   expected: v => [v.forged.trigger.heldAmount > holdToKeep(v.exposure.high, RULES_V1) ? 'covers' : 'short'],
 };
 
-function ending(v: Omit<CaseView, 'suggestion'>, rules: Ruleset): Suggestion {
+function ending(v: Omit<CaseView, 'suggestion' | 'reviewFirst'>, rules: Ruleset): Suggestion {
   const held = v.forged.trigger.heldAmount;
   const asOf = v.forged.asOf;
   const risk = v.flags.some(f => f.state === 'confirmed' && (f.severity === 'critical' || f.severity === 'high'));

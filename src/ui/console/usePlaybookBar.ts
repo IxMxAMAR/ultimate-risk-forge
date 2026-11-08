@@ -97,7 +97,7 @@ export function usePlaybookBar(): PlaybookBarProps | null {
   if (!pb || !view || !cs || !w) return null;
   return {
     title: pb.title, walk: w, collapsed: cs.playbook?.collapsed ?? false, readOnly: decided, picked,
-    showData: !hidden, expected, conclusion: hidden ? null : view.suggestion, compare: cs.practice && decided,
+    showData: !hidden, expected, conclusion: hidden || view.reviewFirst > 0 ? null : view.suggestion, compare: cs.practice && decided,
     onPick: ids => current && setPick({ step: current.step.id, ids }),
     onAnswer: answer, onReopen: id => { if (!decided) setEditing(id); }, onLook: look, onAcceptAll: acceptAll, onUseDecision: useDecision,
     onCollapse: collapsed => dispatch({ type: 'set-playbook-collapsed', collapsed }),

@@ -19,7 +19,7 @@ export function ReportPage() {
   const hidden = cs !== null && practiceOpen(cs);
   const concealed = cs !== null && view !== null && view.forged.surprise && cs.decidedAt === null;
   const report = useMemo(() => {
-    if (!cs || !view || (hidden && cs.decision === null)) return null;
+    if (!cs || !view || ((hidden || view.reviewFirst > 0) && cs.decision === null)) return null;
     const built = buildReport(view, cs, state.analyst, RULES_V1);
     const shown = concealed ? { ...built, header: { ...built.header, title: `Unknown case — ${view.forged.subject.name}` } } : built;
     return hidden ? { ...shown, recommendation: { ...shown.recommendation, override: null } } : shown;

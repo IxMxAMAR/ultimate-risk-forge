@@ -10,7 +10,11 @@ import { startingKeep } from './DecisionPanel';
 import { newCaseState, openStore, type CaseState, type Store } from '../../persist/db';
 
 const CODE = STARTER_CODES[1];
-const viewOf = () => deriveCase(newCaseState(CODE, false, '2026-11-08T10:00:00.000Z'), RULES_V1);
+const viewOf = (mutate: (c: CaseState) => CaseState = c => c) => deriveCase(mutate(newCaseState(CODE, false, '2026-11-08T10:00:00.000Z')), RULES_V1);
+// Every critical and high flag dismissed, so the rules suggest releasing the hold.
+const cleared = (c: CaseState): CaseState => ({
+  ...c, flagStates: Object.fromEntries(viewOf().ruleFlags.filter(f => f.severity === 'critical' || f.severity === 'high').map(f => [f.id, { state: 'dismissed' as const, note: '' }])),
+});
 
 let n = 0;
 async function storeWith(mutate: (c: CaseState) => CaseState = c => c): Promise<Store> {
@@ -141,9 +145,37 @@ describe('flags panel', () => {
 });
 
 describe('decision panel', () => {
-  it('colours the suggestion by action and shows the hold on one line with thousands separators', async () => {
+  it('asks for the flags to be reviewed instead of suggesting a release while critical or high flags are open', async () => {
+    const user = userEvent.setup();
     await open();
-    const sugg = viewOf().suggestion;
+    const sugg = document.querySelector('.sugg');
+    expect(sugg).toHaveTextContent('Review the flags first');
+    expect(sugg).toHaveTextContent('3 critical or high flags still open');
+    expect(sugg).not.toHaveTextContent('Release the hold');
+    expect(document.querySelector('.field .v')).toHaveTextContent('—');
+    expect(screen.getByRole('combobox', { name: 'Decision' })).toHaveDisplayValue('Choose a decision');
+    expect(screen.queryByRole('option', { name: 'Use the suggestion' })).not.toBeInTheDocument();
+    const build = screen.getByRole('button', { name: 'Build report' });
+    expect(build).toBeDisabled();
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Decision' }), 'deny');
+    expect(build).toBeEnabled();
+    expect(screen.queryByText('Add a reason for changing the suggestion')).not.toBeInTheDocument();
+  });
+
+  it('says one flag in the singular', async () => {
+    await open(c => ({ ...cleared(c), flagStates: { ...cleared(c).flagStates, 'visa-over-limit': { state: 'raised', note: '' } } }));
+    expect(document.querySelector('.sugg')).toHaveTextContent('1 critical or high flag still open');
+  });
+
+  it('suggests the release once every critical and high flag is reviewed', async () => {
+    await open(cleared);
+    expect(document.querySelector('.sugg')).toHaveTextContent('Release the hold');
+    expect(screen.getByRole('combobox', { name: 'Decision' })).toHaveValue('suggestion');
+  });
+
+  it('colours the suggestion by action and shows the hold on one line with thousands separators', async () => {
+    await open(cleared);
+    const sugg = viewOf(cleared).suggestion;
     const tone = { deny: 'crit', block: 'crit', escalate: 'crit', approve: 'ok' }[sugg.action as string] ?? 'high';
     expect(document.querySelector('.sugg')).toHaveClass(tone);
     expect(screen.queryByRole('textbox', { name: 'Hold amount in dollars' })).not.toBeInTheDocument();
@@ -152,7 +184,7 @@ describe('decision panel', () => {
 
   it('requires a reason when the chosen action differs from the suggestion', async () => {
     const user = userEvent.setup();
-    await open();
+    await open(cleared);
     const build = screen.getByRole('button', { name: 'Build report' });
     expect(build).toBeEnabled();
     await user.selectOptions(screen.getByRole('combobox', { name: 'Decision' }), 'partial-release');
@@ -167,7 +199,7 @@ describe('decision panel', () => {
 
   it('logs one line for a typed hold, none for a reason edit, and no reason text without a reason', async () => {
     const user = userEvent.setup();
-    await open();
+    await open(cleared);
     await user.selectOptions(screen.getByRole('combobox', { name: 'Decision' }), 'partial-release');
     const log = screen.getByRole('region', { name: 'Activity log' });
     const lines = () => log.querySelectorAll('.act span').length;
@@ -248,8 +280,8 @@ describe('decision panel', () => {
   });
 
   it('shows the suggestion once a practice case is decided', async () => {
-    await open(c => ({ ...c, practice: true, decidedAt: '2026-11-08T11:00:00.000Z' }));
-    await waitFor(() => expect(screen.getByText(viewOf().suggestion.basis)).toBeInTheDocument());
+    await open(c => ({ ...cleared(c), practice: true, decidedAt: '2026-11-08T11:00:00.000Z' }));
+    await waitFor(() => expect(screen.getByText(viewOf(cleared).suggestion.basis)).toBeInTheDocument());
   });
 });
 

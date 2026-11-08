@@ -38,9 +38,11 @@ export function DecisionPanel() {
   const [preview, setPreview] = useState(false);
 
   const hidden = cs !== null && view !== null && practiceOpen(cs);
-  const unchosen = hidden && cs.decision === null;
+  // No release is suggested while critical or high flags wait for review; the analyst can still choose an action.
+  const waiting = view !== null && view.reviewFirst > 0;
+  const unchosen = (hidden || waiting) && cs !== null && cs.decision === null;
   const shown: Decision | null = !cs || !view ? null : cs.decision ?? view.suggestion;
-  const differs = !!(shown && view && !hidden && (shown.action !== view.suggestion.action || shown.keep !== view.suggestion.keep));
+  const differs = !!(shown && view && !hidden && !waiting && (shown.action !== view.suggestion.action || shown.keep !== view.suggestion.keep));
   const decided = cs !== null && cs.decidedAt !== null;
   const needsReason = differs && !decided && reason.trim() === '';
   const canBuild = shown !== null && !unchosen && !needsReason;
@@ -81,17 +83,20 @@ export function DecisionPanel() {
   const saveReason = () => { if (cs.decision && reason !== cs.overrideReason) commit(cs.decision, reason); };
 
   const holdLocked = decided || shown.action === 'approve' || HELD_IN_FULL.includes(shown.action);
-  const sameAsSuggestion = !hidden && !differs && shown.action === suggestion.action && shown.keep === suggestion.keep;
+  const offered = !hidden && !waiting;
+  const sameAsSuggestion = offered && !differs && shown.action === suggestion.action && shown.keep === suggestion.keep;
   const selectValue = unchosen ? '' : sameAsSuggestion ? 'suggestion' : shown.action;
 
   return (
     <div className="decision">
       <div className="label">Suggested decision</div>
-      <div className={`sugg ${hidden ? 'hidden-sugg' : TONE[suggestion.action]}`}>
+      <div className={`sugg ${offered ? TONE[suggestion.action] : 'quiet'}`}>
         {hidden
           ? <div><b>Hidden in practice mode — make your own call</b></div>
-          : <div><b>{actionLabel(suggestion.action, trigger)}</b><small>{suggestion.basis}</small></div>}
-        <Icon name="shield" style={{ width: 20, height: 20, color: hidden ? 'var(--fg3)' : `var(--${TONE[suggestion.action]}-text)` }} />
+          : waiting
+            ? <div><b>Review the flags first</b><small>{view.reviewFirst} critical or high flag{view.reviewFirst === 1 ? '' : 's'} still open</small></div>
+            : <div><b>{actionLabel(suggestion.action, trigger)}</b><small>{suggestion.basis}</small></div>}
+        <Icon name="shield" style={{ width: 20, height: 20, color: offered ? `var(--${TONE[suggestion.action]}-text)` : 'var(--fg3)' }} />
       </div>
       <div className="fields">
         <div className={`field${evidenceIds(state, view).includes('decision-hold') ? ' is-evidence' : ''}`} data-evidence-id="decision-hold"><div className="k">Hold</div>
@@ -114,7 +119,7 @@ export function DecisionPanel() {
       )}
       <div className="override">
         <select aria-label="Decision" value={selectValue} disabled={decided} onChange={e => chooseAction(e.target.value)}>
-          {unchosen ? <option value="" disabled>Choose a decision</option> : !hidden && <option value="suggestion">Use the suggestion</option>}
+          {unchosen ? <option value="" disabled>Choose a decision</option> : offered && <option value="suggestion">Use the suggestion</option>}
           {ACTIONS.map(a => <option key={a} value={a}>{actionLabel(a, trigger)}</option>)}
         </select>
         <button className="btn btn-ghost" aria-label="Preview message to seller" aria-expanded={preview} disabled={unchosen} onClick={() => setPreview(p => !p)}><Icon name="send" />Message</button>

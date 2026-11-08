@@ -11,6 +11,6 @@ Risk Forge is an offline browser app for practising risk assessment on fictional
 
 ## Playbooks
 
-Cases of the Hidden by growth type come with a playbook: six short questions (sales jump, hidden rate, card brands, refunds, growth explained, money) that walk you through the evidence. Each question has "Look at" chips that open the data it is about, and each answer confirms or dismisses the matching flags. The bar ends with a suggested decision you can use as is, and the report lists the path you took. Press 1–4 to pick an answer; a step that does not apply is skipped, and you can collapse the bar or reopen an earlier step.
+Cases of the Hidden by growth type come with a playbook: six short questions (sales jump, hidden rate, card brands, refunds, growth explained, money) that walk you through the evidence. Each question has "Look at" chips that open the data it is about, and each answer confirms or dismisses the matching flags. The bar ends with a suggested decision you can use as is, and the report lists the path you took. No case suggests releasing a hold while a critical or high flag is still unreviewed; the decision panel asks you to review the flags first. Press 1–4 to pick an answer; a step that does not apply is skipped, and you can collapse the bar or reopen an earlier step.
 
 In practice mode the bar shows no "Data says" marks, no Accept button and no conclusion until you mark the case decided; then it compares your path with the expected one.

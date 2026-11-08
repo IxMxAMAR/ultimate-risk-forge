@@ -9,9 +9,10 @@ import { playbookFor } from '../playbooks';
 import type { Playbook } from '../playbooks/types';
 import type { CaseState } from '../persist/db';
 
-export interface CaseView { forged: ForgedCase; stats: DisputeStats; ruleFlags: Flag[]; flags: Flag[]; exposure: Exposure; playbook: Playbook | null; suggestion: Suggestion }
+// `reviewFirst` counts the critical and high flags still raised while the suggestion releases the hold; the console asks for that review instead of suggesting a release.
+export interface CaseView { forged: ForgedCase; stats: DisputeStats; ruleFlags: Flag[]; flags: Flag[]; exposure: Exposure; playbook: Playbook | null; suggestion: Suggestion; reviewFirst: number }
 
-type Base = Omit<CaseView, 'flags' | 'playbook' | 'suggestion'>;
+type Base = Omit<CaseView, 'flags' | 'playbook' | 'suggestion' | 'reviewFirst'>;
 
 // A forged case and its checks never change for a code, so they are computed once (ARCHITECTURE.md §4).
 const cache = new Map<string, Base>();
@@ -36,5 +37,7 @@ export function deriveCase(cs: CaseState, rules: Ruleset): CaseView {
   const flags = [...base.ruleFlags.map(f => ({ ...f, ...cs.flagStates[f.id] })), ...cs.analystFlags];
   const playbook = playbookFor(base.forged.actualType);
   const view = { ...base, flags, playbook };
-  return { ...view, suggestion: playbook && !signedBeforeV11(cs) ? playbook.ending(view, rules) : suggestDecision(base.forged, flags, base.exposure, rules) };
+  const suggestion = playbook && !signedBeforeV11(cs) ? playbook.ending(view, rules) : suggestDecision(base.forged, flags, base.exposure, rules);
+  const reviewFirst = suggestion.action === 'approve' ? flags.filter(f => f.state === 'raised' && (f.severity === 'critical' || f.severity === 'high')).length : 0;
+  return { ...view, suggestion, reviewFirst };
 }

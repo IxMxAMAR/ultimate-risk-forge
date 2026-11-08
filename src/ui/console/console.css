@@ -185,8 +185,8 @@ tr:last-child td{border-bottom:none}
 .sugg.high b{color:var(--high-text)}
 .sugg.ok b{color:var(--ok-text)}
 .sugg small{display:block;color:var(--fg3);font-size:12px}
-.sugg.hidden-sugg{background:var(--card);border-color:var(--border-strong)}
-.sugg.hidden-sugg b{font-size:13px;color:var(--fg2)}
+.sugg.quiet{background:var(--card);border-color:var(--border-strong)}
+.sugg.quiet b{font-size:13px;color:var(--fg2)}
 .fields{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
 .field{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:7px 10px}
 .field .k{font-size:11px;color:var(--fg3)}

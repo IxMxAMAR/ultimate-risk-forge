@@ -39,7 +39,7 @@ export function Paper({ v, cs, report, hidden }: { v: CaseView; cs: CaseState; r
   const rule = fix.text.indexOf(RULE_LEAD);
   const split = report.fallback.indexOf(': ');
   const audit = [...report.audit];
-  if (!hidden) {
+  if (!hidden && v.reviewFirst === 0) {
     const ran = Math.max(0, audit.findIndex(a => a.what.startsWith('Checks ran')) + 1);
     audit.splice(ran, 0, { ts: audit[ran - 1]?.ts ?? cs.openedAt, who: 'Rules', what: `Rules ${header.rules} suggested: ${v.suggestion.summary}` });
   }
