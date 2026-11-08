@@ -101,6 +101,22 @@ describe('playbook in the console', () => {
     expect(await within(bar()).findByText(/changed outside the playbook/)).toBeInTheDocument();
   });
 
+  it('answering the same step again repairs a changed flag without a new answered line', async () => {
+    const user = userEvent.setup();
+    await open();
+    await user.keyboard('11');
+    await screen.findByText('1 confirmed');
+    const hidden = viewOf().flags.find(f => f.id === 'rate-hidden-by-growth')!;
+    await user.click(screen.getByRole('button', { name: hidden.title }));
+    await user.keyboard('d');
+    expect(await within(bar()).findByText(/changed outside the playbook/)).toBeInTheDocument();
+    await user.click(within(bar()).getByRole('button', { name: 'Hidden rate' }));
+    await user.keyboard('1');
+    expect(await screen.findByText('1 confirmed')).toBeInTheDocument();
+    expect(within(bar()).queryByText(/changed outside the playbook/)).toBeNull();
+    expect(within(log()).getAllByText(/answered/)).toHaveLength(2);
+  });
+
   it('a look-at chip outlines its evidence and a chosen flag takes the outline back', async () => {
     const user = userEvent.setup();
     await open();
@@ -115,7 +131,9 @@ describe('playbook in the console', () => {
     const user = userEvent.setup();
     await open();
     await user.click(within(bar()).getByRole('button', { name: "Accept the data's answers" }));
-    expect(await within(log()).findByText("Analyst accepted the data's answers (6 steps)")).toBeInTheDocument();
+    expect(await within(log()).findByText('Analyst answered “Did sales jump recently?”: Yes — 5× last month')).toBeInTheDocument();
+    expect(within(log()).getAllByText(/answered/)).toHaveLength(6);
+    expect(within(log()).queryByText(/accepted the data/)).toBeNull();
     // PD-009R-HF: the expected path (jump yes, hidden yes, Mastercard 3%+ and Visa, refunds yes, not explained) confirms all five flags.
     expect(screen.getByText('5 confirmed')).toBeInTheDocument();
     expect(screen.getByText('0 dismissed')).toBeInTheDocument();
@@ -127,14 +145,12 @@ describe('playbook in the console', () => {
   it('shows nothing of the data, conclusion or expected path in practice before deciding, at every step', async () => {
     const user = userEvent.setup();
     await open(practice);
-    const suggestion = viewOf().suggestion;
     const noLeak = () => {
       expect(bar()).toBeInTheDocument();
       expect(within(bar()).queryByRole('button', { name: 'Collapse' })).not.toBeNull();
       const html = document.body.innerHTML;
       expect(html).not.toMatch(/Data says|Accept the data|Use this decision|Expected:/);
-      expect(html).not.toContain(suggestion.summary);
-      expect(html).not.toContain(suggestion.basis);
+      for (const text of ['Release all $64,000', 'Partial release, keep $42,000', 'Deny, keep all $64,000', 'No confirmed critical or high flags', 'Confirmed risk']) expect(html).not.toContain(text);
       for (const el of document.body.querySelectorAll('[aria-label],[title]')) {
         expect(`${el.getAttribute('aria-label')} ${el.getAttribute('title')}`).not.toMatch(/Data says|Accept|Use this decision/);
       }

@@ -21,6 +21,10 @@ export function tryDeriveCase(cs: CaseState, rules: Ruleset): CaseView | null {
   try { return deriveCase(cs, rules); } catch { return null; }
 }
 
+// A case decided before rules v1.1 carries no version: it was signed under v1.0 and keeps that suggestion (ARCHITECTURE.md §4).
+const signedBeforeV11 = (cs: CaseState): boolean => cs.decidedAt !== null && cs.rulesVersion === undefined;
+export const rulesVersionOf = (cs: CaseState, rules: Ruleset): string => (signedBeforeV11(cs) ? '1.0' : cs.rulesVersion ?? rules.version);
+
 export function deriveCase(cs: CaseState, rules: Ruleset): CaseView {
   let base = cache.get(cs.code);
   if (!base) {
@@ -31,6 +35,6 @@ export function deriveCase(cs: CaseState, rules: Ruleset): CaseView {
   }
   const flags = [...base.ruleFlags.map(f => ({ ...f, ...cs.flagStates[f.id] })), ...cs.analystFlags];
   const playbook = playbookFor(base.forged.actualType);
-  const view = { ...base, flags, playbook, suggestion: suggestDecision(base.forged, flags, base.exposure, rules) };
-  return playbook ? { ...view, suggestion: playbook.ending(view, rules) } : view;
+  const view = { ...base, flags, playbook };
+  return { ...view, suggestion: playbook && !signedBeforeV11(cs) ? playbook.ending(view, rules) : suggestDecision(base.forged, flags, base.exposure, rules) };
 }

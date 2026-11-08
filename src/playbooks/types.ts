@@ -14,7 +14,7 @@ export interface Step {
   when?(v: CaseView, answers: PlaybookAnswers): boolean;
   expected(v: CaseView): string[];
 }
-export interface Playbook { id: string; version: string; caseType: CaseTypeId; title: string; steps: Step[]; ending(v: CaseView, rules: Ruleset): Suggestion }
+export interface Playbook { id: string; version: string; caseType: CaseTypeId; title: string; steps: Step[]; ending(v: Omit<CaseView, 'suggestion'>, rules: Ruleset): Suggestion }
 export type StepStatus = 'done' | 'current' | 'upcoming' | 'skipped';
 export interface StepView { step: Step; status: StepStatus; chosen: string[]; answers: Answer[]; lookAt: LookAt[]; drift: boolean }
 export interface Walk { steps: StepView[]; current: StepView | null; done: boolean; answered: number; total: number }

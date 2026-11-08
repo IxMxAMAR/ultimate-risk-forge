@@ -31,11 +31,18 @@ describe('deriveCase', () => {
     const cs = newCaseState(STARTER_CODES[1], true, NOW);
     const v = deriveCase(cs, RULES_V1);
     expect(v.playbook).toBe(HIDDEN_BY_GROWTH);
-    expect(v.suggestion).toEqual(HIDDEN_BY_GROWTH.ending(v, RULES_V1));
+    expect(v.suggestion).toMatchObject({ action: 'approve', keep: 0, release: 6400000, summary: 'Release all $64,000' });
     const flagStates = Object.fromEntries(v.ruleFlags.map(f => [f.id, { state: 'confirmed' as const, note: '' }]));
     const v2 = deriveCase({ ...cs, flagStates }, RULES_V1);
-    expect(v2.suggestion).toEqual(HIDDEN_BY_GROWTH.ending(v2, RULES_V1));
-    expect(v2.suggestion).not.toEqual(v.suggestion);
+    expect(v2.suggestion).toMatchObject({ action: 'partial-release', keep: 4200000, release: 2200000, summary: 'Partial release, keep $42,000' });
+  });
+
+  it('keeps the v1.0 suggestion of a case decided before rules v1.1', () => {
+    const cs = newCaseState(STARTER_CODES[1], true, NOW);
+    const flagStates = Object.fromEntries(['rate-hidden-by-growth', 'mc-over-limit'].map(id => [id, { state: 'confirmed' as const, note: '' }]));
+    expect(deriveCase({ ...cs, flagStates }, RULES_V1).suggestion.summary).toBe('Partial release, keep $42,000');
+    expect(deriveCase({ ...cs, flagStates, decidedAt: NOW }, RULES_V1).suggestion.summary).toBe('Deny, keep all $64,000');
+    expect(deriveCase({ ...cs, flagStates, decidedAt: NOW, rulesVersion: '1.1' }, RULES_V1).suggestion.summary).toBe('Partial release, keep $42,000');
   });
 
   it('derives states saved without a playbook', () => {

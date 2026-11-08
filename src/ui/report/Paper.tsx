@@ -132,7 +132,7 @@ export function Paper({ v, cs, report, hidden }: { v: CaseView; cs: CaseState; r
             {report.path.map((p, i) => (
               <li key={p.question}>
                 <span className="num path-no">{i + 1}</span>
-                <div><b>{p.question}</b><span>{p.answer}</span></div>
+                <div><b>{p.question}</b><span>{p.answer}</span>{p.drift && <span className="path-drift"><Icon name="tri" />changed outside the playbook</span>}</div>
                 <span className="path-sets">{p.sets.map(t => <span key={t} className={`pc ${t.startsWith('Confirmed') ? 'high' : 'off'}`}><Icon name={t.startsWith('Confirmed') ? 'check' : 'x'} />{t}</span>)}</span>
               </li>
             ))}

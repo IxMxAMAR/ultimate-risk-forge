@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
 import { activeOf, useApp } from '../../app/AppContext';
-import { answerStep, expectedPath, walk } from '../../playbooks/engine';
+import { answerStep, expectedPath, labelsOf, walk } from '../../playbooks/engine';
 import type { FlagStateMap, LookAt, PlaybookAnswers, StepView, Walk } from '../../playbooks/types';
+import { practiceOpen } from '../../practice/open';
 import { useShortcuts } from '../useShortcuts';
 import { toggle, type PlaybookBarProps } from './PlaybookBar';
 
@@ -23,7 +24,7 @@ export function usePlaybookBar(): PlaybookBarProps | null {
   const [pick, setPick] = useState<{ step: string; ids: string[] }>({ step: '', ids: [] });
   const pb = view?.playbook ?? null;
   const decided = cs !== null && cs.decidedAt !== null;
-  const hidden = cs !== null && cs.practice && !decided;
+  const hidden = cs !== null && practiceOpen(cs);
   const answers: PlaybookAnswers = cs?.playbook?.answers ?? {};
   const expected = useMemo(() => (pb && view && !hidden ? expectedPath(pb, view) : null), [pb, view, hidden]);
 
@@ -34,6 +35,7 @@ export function usePlaybookBar(): PlaybookBarProps | null {
   const current = w?.current ?? null;
   const picked = current ? (pick.step === current.step.id ? pick.ids : current.chosen) : [];
   const now = () => new Date().toISOString();
+  const said = (sv: StepView, chosen: string[]) => `${state.analyst} answered “${sv.step.question}”: ${labelsOf(sv.answers, chosen)}`;
 
   const answer = (stepId: string, chosen: string[]) => {
     if (!pb || !view || !cs || !w || decided) return;
@@ -41,10 +43,10 @@ export function usePlaybookBar(): PlaybookBarProps | null {
     setPick({ step: '', ids: [] });
     const sv = w.steps.find(s => s.step.id === stepId);
     const stored = answers[stepId];
-    if (!sv || (stored && sameSet(stored, chosen))) return;
+    const same = !!stored && sameSet(stored, chosen);
+    if (!sv || (same && !sv.drift)) return;
     const next = answerStep(pb, view, answers, stepId, chosen);
-    const labels = chosen.map(id => sv.answers.find(a => a.id === id)?.label ?? id).join(', ');
-    dispatch({ type: 'answer-step', answers: next.answers, flagStates: next.flagStates, line: `${state.analyst} answered “${sv.step.question}”: ${labels}`, now: now() });
+    dispatch({ type: 'answer-step', answers: next.answers, flagStates: next.flagStates, lines: same ? [] : [said(sv, chosen)], now: now() });
   };
 
   const acceptAll = () => {
@@ -53,14 +55,15 @@ export function usePlaybookBar(): PlaybookBarProps | null {
     setPick({ step: '', ids: [] });
     let at = answers;
     const flagStates: FlagStateMap = {};
-    let n = 0;
+    const lines: string[] = [];
     for (let step = walk(pb, view, at).current; step; step = walk(pb, view, at).current) {
-      const next = answerStep(pb, view, at, step.step.id, step.step.expected(view));
+      const chosen = step.step.expected(view);
+      const next = answerStep(pb, view, at, step.step.id, chosen);
       at = next.answers;
       Object.assign(flagStates, next.flagStates);
-      n++;
+      lines.push(said(step, chosen));
     }
-    if (n > 0) dispatch({ type: 'answer-step', answers: at, flagStates, line: `${state.analyst} accepted the data's answers (${n} steps)`, now: now() });
+    if (lines.length > 0) dispatch({ type: 'answer-step', answers: at, flagStates, lines, now: now() });
   };
 
   const look = (l: LookAt) => {

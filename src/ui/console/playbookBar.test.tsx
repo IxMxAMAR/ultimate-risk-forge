@@ -84,10 +84,18 @@ describe('PlaybookBar', () => {
   it('collapses to one line', () => {
     const p = props({}, { collapsed: true });
     const { container } = render(<Bar {...p} />);
-    expect(screen.getByText('Playbook · Step 1 of 6: Early hold release')).toBeInTheDocument();
+    expect(screen.getByText('Playbook · Step 1 of 6: Sales jump')).toBeInTheDocument();
     expect(container.querySelector('.steps6')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Expand' }));
     expect(p.onCollapse).toHaveBeenCalledWith(false);
+  });
+
+  it('names the step in progress on the collapsed line, and the playbook once every step is answered', () => {
+    const { unmount } = render(<Bar {...props(toBrands, { collapsed: true })} />);
+    expect(screen.getByText('Playbook · Step 3 of 6: Card brands')).toBeInTheDocument();
+    unmount();
+    render(<Bar {...props(all, { collapsed: true })} />);
+    expect(screen.getByText('Playbook · Step 6 of 6: Early hold release')).toBeInTheDocument();
   });
 
   it('reopens a done step and flags drift', () => {

@@ -1,8 +1,10 @@
 import { deriveCase, type CaseView } from '../app/derive';
+import { suggestDecision } from '../checks/suggest';
 import { RULES_V1 } from '../domain/ruleset';
-import { newCaseState } from '../persist/db';
+import { newCaseState, type CaseState } from '../persist/db';
 import { answerStep, comparePath, effectsOf, expectedPath, walk } from './engine';
-import type { Playbook, Step } from './types';
+import { HIDDEN_BY_GROWTH } from './hiddenByGrowth';
+import type { Playbook, PlaybookAnswers, Step } from './types';
 
 const ts = '2026-01-01T00:00:00.000Z';
 const view = (flagStates: Parameters<typeof deriveCase>[0]['flagStates'] = {}): CaseView =>
@@ -28,7 +30,7 @@ const b: Step = {
   expected: () => ['mc'],
 };
 const c: Step = { id: 'c', title: 'C', question: 'Note', why: '', lookAt: () => [], answers: () => [{ id: 'ok', label: 'OK', detail: '' }], expected: () => ['ok'] };
-const pb: Playbook = { id: 't', version: '1', caseType: 'hidden-by-growth', title: 'T', steps: [a, b, c], ending: v => v.suggestion };
+const pb: Playbook = { id: 't', version: '1', caseType: 'hidden-by-growth', title: 'T', steps: [a, b, c], ending: (v, rules) => suggestDecision(v.forged, v.flags, v.exposure, rules) };
 
 describe('playbook engine', () => {
   const v = view();
@@ -51,7 +53,9 @@ describe('playbook engine', () => {
   });
 
   it('re-raises flags of a step that becomes skipped', () => {
-    const r = answerStep(pb, v, { a: ['yes'], b: ['mc'] }, 'a', ['no']);
+    const set = (state: 'confirmed' | 'dismissed') => ({ state, note: '' });
+    const live = view({ 'young-account-fast-growth': set('confirmed'), 'mc-over-limit': set('confirmed'), 'visa-over-limit': set('dismissed') });
+    const r = answerStep(pb, live, { a: ['yes'], b: ['mc'] }, 'a', ['no']);
     expect(r.answers).toEqual({ a: ['no'] });
     expect(r.flagStates['mc-over-limit']).toBe('raised');
     expect(r.flagStates['visa-over-limit']).toBe('raised');
@@ -78,5 +82,52 @@ describe('playbook engine', () => {
     expect(same.every(r => r.ok)).toBe(true);
     expect(comparePath(walk(pb, v, { a: ['no'], c: ['ok'] }), { a: ['no'], c: ['ok'] }).map(r => r.stepId)).toEqual(['a', 'c']);
     expect(comparePath(walk(pb, v, { a: ['yes'], b: ['mc', 'visa'], c: ['ok'] }), { a: ['yes'], b: ['visa', 'mc'], c: ['ok'] })[1]).toMatchObject({ yours: 'MC, Visa', ok: true });
+  });
+});
+
+describe('withdrawing a replaced answer (Hidden by growth, PD-009R-HF)', () => {
+  const CODE = 'PD-009R-HF';
+  const apply = (steps: [string, string[]][]) => {
+    let answers: PlaybookAnswers = {};
+    const flagStates: CaseState['flagStates'] = {};
+    const derive = () => deriveCase({ ...newCaseState(CODE, false, ts), flagStates: { ...flagStates } }, RULES_V1);
+    const give = (id: string, chosen: string[]) => {
+      const r = answerStep(HIDDEN_BY_GROWTH, derive(), answers, id, chosen);
+      answers = r.answers;
+      for (const [k, state] of Object.entries(r.flagStates)) flagStates[k] = { state, note: '' };
+    };
+    for (const [id, chosen] of steps) give(id, chosen);
+    const state = (k: string) => derive().flags.find(f => f.id === k)?.state;
+    return { give, state, flagStates, answers: () => answers, direct: (k: string, s: 'raised' | 'confirmed' | 'dismissed') => { flagStates[k] = { state: s, note: '' }; } };
+  };
+
+  it('returns a brand flag to raised when the new brands answer no longer sets it', () => {
+    const p = apply([['jump', ['yes']], ['hidden', ['no']], ['brands', ['mc3']]]);
+    expect(p.state('mc-over-limit')).toBe('confirmed');
+    p.give('brands', ['thin']);
+    expect(p.state('mc-over-limit')).toBe('raised');
+    expect(p.state('visa-over-limit')).toBe('raised');
+  });
+
+  it('keeps the brand that is still chosen and settles the one that was dropped', () => {
+    const p = apply([['jump', ['yes']], ['hidden', ['no']], ['brands', ['mc3', 'visa']]]);
+    p.give('brands', ['visa']);
+    expect(p.state('visa-over-limit')).toBe('confirmed');
+    expect(p.state('mc-over-limit')).toBe('dismissed');
+  });
+
+  it('leaves a flag the analyst changed directly when a cascade clears its step', () => {
+    const p = apply([['jump', ['yes']], ['hidden', ['yes']]]);
+    expect(p.state('rate-hidden-by-growth')).toBe('confirmed');
+    p.direct('rate-hidden-by-growth', 'dismissed');
+    p.give('jump', ['no']);
+    expect(p.state('rate-hidden-by-growth')).toBe('dismissed');
+    expect(Object.keys(p.answers())).toEqual(['jump']);
+  });
+
+  it('raises a flag when its cleared step set it and nothing changed it', () => {
+    const p = apply([['jump', ['yes']], ['hidden', ['yes']]]);
+    p.give('jump', ['no']);
+    expect(p.state('rate-hidden-by-growth')).toBe('raised');
   });
 });

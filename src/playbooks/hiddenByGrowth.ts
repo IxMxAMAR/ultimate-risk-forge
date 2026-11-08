@@ -101,16 +101,16 @@ const money: Step = {
     const detail = `Held ${formatMoney(v.forged.trigger.heldAmount)} vs worst case ${formatMoney(v.exposure.high)}`;
     return [{ id: 'covers', label: 'Covers it', detail }, { id: 'short', label: 'Falls short', detail }];
   },
-  expected: v => [v.forged.trigger.heldAmount > v.exposure.high ? 'covers' : 'short'],
+  expected: v => [v.forged.trigger.heldAmount > holdToKeep(v.exposure.high, RULES_V1) ? 'covers' : 'short'],
 };
 
-function ending(v: CaseView, rules: Ruleset): Suggestion {
+function ending(v: Omit<CaseView, 'suggestion'>, rules: Ruleset): Suggestion {
   const held = v.forged.trigger.heldAmount;
   const asOf = v.forged.asOf;
   const risk = v.flags.some(f => f.state === 'confirmed' && (f.severity === 'critical' || f.severity === 'high'));
   if (!risk) return { action: 'approve', keep: 0, release: held, reviewDate: asOf, basis: 'No confirmed critical or high flags', summary: `Release all ${formatMoney(held)}` };
-  if (held > v.exposure.high) {
-    const keep = Math.min(held, holdToKeep(v.exposure.high, rules));
+  const keep = holdToKeep(v.exposure.high, rules);
+  if (held > keep) {
     return { action: 'partial-release', keep, release: held - keep, reviewDate: reviewDateFrom(asOf), basis: 'Confirmed risk; the hold is more than the worst case', summary: `Partial release, keep ${formatMoney(keep)}` };
   }
   return { action: 'deny', keep: held, release: 0, reviewDate: reviewDateFrom(asOf), basis: 'Confirmed risk; the hold does not cover the worst case', summary: `Deny, keep all ${formatMoney(held)}` };

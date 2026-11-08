@@ -129,7 +129,7 @@ describe('reducer', () => {
 
   describe('playbook', () => {
     const step = (s: AppState, over: Partial<Extract<AppAction, { type: 'answer-step' }>> = {}) => reducer(s, {
-      type: 'answer-step', answers: { jump: ['a'] }, flagStates: { hidden: 'confirmed', 'analyst-1': 'dismissed' }, line: 'Sam answered “Q”: A', now: NOW, ...over,
+      type: 'answer-step', answers: { jump: ['a'] }, flagStates: { hidden: 'confirmed', 'analyst-1': 'dismissed' }, lines: ['Sam answered “Q”: A'], now: NOW, ...over,
     });
 
     it('stores answers, applies rule flag states, keeps notes and logs one line', () => {
@@ -144,11 +144,18 @@ describe('reducer', () => {
       expect(active(s).activity).toEqual([{ ts: NOW, who: 'Sam', what: 'Sam answered “Q”: A' }]);
     });
 
-    it('logs nothing when the line is null and keeps the collapsed flag', () => {
+    it('logs one entry per line, none for an empty list, and keeps the collapsed flag', () => {
       let s = reducer(base(), { type: 'set-playbook-collapsed', collapsed: true });
-      s = step(s, { line: null });
+      s = step(s, { lines: [] });
       expect(active(s).playbook).toEqual({ answers: { jump: ['a'] }, collapsed: true });
       expect(active(s).activity).toEqual([]);
+    });
+
+    it('logs every line of one dispatch in order', () => {
+      const s = step(base(), { lines: ['Sam answered “Q1”: A', 'Sam answered “Q2”: B'] });
+      expect(active(s).activity).toEqual([
+        { ts: NOW, who: 'Sam', what: 'Sam answered “Q1”: A' }, { ts: NOW, who: 'Sam', what: 'Sam answered “Q2”: B' },
+      ]);
     });
 
     it('persists the collapsed flag', () => {
@@ -156,10 +163,10 @@ describe('reducer', () => {
       expect(active(s).playbook).toEqual({ answers: {}, collapsed: true });
     });
 
-    it('ignores both actions once decided', () => {
+    it('ignores answers once decided but still lets the bar collapse', () => {
       const decided = reducer(base(), { type: 'mark-decided', now: NOW, score: null, decision: DECISION });
       expect(step(decided)).toEqual(decided);
-      expect(reducer(decided, { type: 'set-playbook-collapsed', collapsed: true })).toEqual(decided);
+      expect(active(reducer(decided, { type: 'set-playbook-collapsed', collapsed: true })).playbook).toEqual({ answers: {}, collapsed: true });
     });
 
     it('stores the rules version when decided', () => {

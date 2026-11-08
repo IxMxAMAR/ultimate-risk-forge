@@ -1,5 +1,4 @@
 import { deriveCase, type CaseView } from '../app/derive';
-import { holdToKeep } from '../checks/exposure';
 import { encodeCaseCode } from '../domain/caseCode';
 import { RULES_V1 } from '../domain/ruleset';
 import { DIFFICULTIES, type FlagKind } from '../domain/types';
@@ -59,12 +58,22 @@ describe('hidden-by-growth playbook', () => {
     it('approves when only medium flags are confirmed', () => {
       expect(pb.ending(withFlags(medium, 5000000, 1000000), RULES_V1)).toMatchObject({ action: 'approve', keep: 0, release: 5000000, reviewDate: base.forged.asOf });
     });
-    it('partially releases when risk is confirmed and the hold exceeds the worst case', () => {
-      const keep = Math.min(5000000, holdToKeep(1000000, RULES_V1));
-      expect(pb.ending(withFlags(risky, 5000000, 1000000), RULES_V1)).toMatchObject({ action: 'partial-release', keep, release: 5000000 - keep });
+    it('partially releases when risk is confirmed and the hold exceeds the hold to keep', () => {
+      expect(pb.ending(withFlags(risky, 5000000, 1000000), RULES_V1)).toMatchObject({ action: 'partial-release', keep: 1100000, release: 3900000, summary: 'Partial release, keep $11,000' });
     });
     it('denies when risk is confirmed and the hold does not cover the worst case', () => {
-      expect(pb.ending(withFlags(risky, 1000000, 5000000), RULES_V1)).toMatchObject({ action: 'deny', keep: 1000000, release: 0 });
+      expect(pb.ending(withFlags(risky, 1000000, 5000000), RULES_V1)).toMatchObject({ action: 'deny', keep: 1000000, release: 0, summary: 'Deny, keep all $10,000' });
+    });
+    it('denies instead of releasing $0 when the hold to keep is not below the hold', () => {
+      expect(pb.ending(withFlags(risky, 1000000, 960000), RULES_V1)).toMatchObject({ action: 'deny', keep: 1000000, release: 0 });
+    });
+    it('denies when the hold equals the worst case', () => {
+      expect(pb.ending(withFlags(risky, 1000000, 1000000), RULES_V1)).toMatchObject({ action: 'deny', keep: 1000000, release: 0 });
+    });
+    it('expects Falls short when the hold is not above the hold to keep', () => {
+      const money = pb.steps.find(s => s.id === 'money')!;
+      expect(money.expected(withFlags(risky, 5000000, 1000000))).toEqual(['covers']);
+      expect(money.expected(withFlags(risky, 1000000, 960000))).toEqual(['short']);
     });
   });
 

@@ -57,7 +57,7 @@ async function answerTwoSteps(page) {
   await waitFor(async () => (await current()).includes('Card brands'), 5_000, 'Card brands step');
 }
 
-const freePort =() => new Promise((ok, fail) => {
+const freePort = () => new Promise((ok, fail) => {
   const srv = createServer();
   srv.on('error', fail);
   srv.listen(0, '127.0.0.1', () => { const { port } = srv.address(); srv.close(() => ok(port)); });

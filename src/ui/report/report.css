@@ -97,6 +97,8 @@
 .path-list div > span{display:block;font-size:13px;color:var(--p-fg2)}
 .path-sets{display:flex;flex-direction:column;align-items:stretch;gap:4px}
 .path-sets .pc{justify-content:flex-start;margin-top:0}
+.path-list .path-drift{display:flex;align-items:center;gap:6px;margin-top:2px;font-weight:600;color:var(--p-med)}
+.path-list .path-drift svg.i{width:13px;height:13px;flex:none}
 .path-empty{font-size:13px;color:var(--p-fg3)}
 .path-end{display:flex;align-items:center;gap:8px;margin-top:12px;padding:10px 12px;border-radius:10px;background:var(--p-soft);border:1px solid var(--p-line);font-size:13px;color:var(--p-fg2)}
 .path-end b{color:var(--p-fg)}

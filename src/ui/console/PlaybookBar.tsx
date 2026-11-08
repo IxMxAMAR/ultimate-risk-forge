@@ -61,7 +61,7 @@ export function PlaybookBar(p: PlaybookBarProps) {
   if (p.collapsed) {
     return (
       <section className="pbar pbar-c" aria-label="Playbook">
-        <span>Playbook · Step {step} of {walk.total}: {p.title}</span>
+        <span>Playbook · Step {step} of {walk.total}: {walk.current?.step.title ?? p.title}</span>
         <span className="spacer" />
         <Button small icon="chev" onClick={() => p.onCollapse(false)}>Expand</Button>
       </section>

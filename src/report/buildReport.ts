@@ -1,5 +1,5 @@
 import { coverage, type ExposureRow } from '../checks/exposure';
-import type { CaseView } from '../app/derive';
+import { rulesVersionOf, type CaseView } from '../app/derive';
 import { RULES_V1, type Ruleset } from '../domain/ruleset';
 import { actionLabel } from '../domain/labels';
 import type { ActivityEntry, Decision, Flag } from '../domain/types';
@@ -19,7 +19,7 @@ export interface ReportModel {
   conditions: string[]; fallback: string; message: string;
   fix: { text: string; affected: number };
   audit: ActivityEntry[]; attachments: { title: string; page: number }[];
-  path: { question: string; answer: string; sets: string[] }[]; pathConclusion: string | null;
+  path: { question: string; answer: string; sets: string[]; drift: boolean }[]; pathConclusion: string | null;
   consistency: { past: PastDecision[]; current: { ref: string; keptPct: number }; median: number; inLine: boolean; range: [number, number] };
   footer: string;
 }
@@ -34,11 +34,11 @@ export function buildReport(v: CaseView, cs: CaseState, analyst: string, rules: 
   const overridden = cs.decision !== null && (cs.decision.action !== suggestion.action || cs.decision.keep !== suggestion.keep);
   const keptPct = Math.round(d.keep / held * 100);
   const hidden = practiceOpen(cs);
-  const rulesVersion = cs.rulesVersion ?? rules.version;
+  const rulesVersion = rulesVersionOf(cs, rules);
   const played = v.playbook ? walk(v.playbook, v, cs.playbook?.answers ?? {}) : null;
   const path = played
     ? played.steps.filter(s => s.status === 'done').map(s => ({
-      question: s.step.question, answer: labelsOf(s.answers, s.chosen),
+      question: s.step.question, answer: labelsOf(s.answers, s.chosen), drift: s.drift,
       sets: Object.entries(effectsOf(s.step, v, s.chosen)).flatMap(([kind, state]) => {
         const title = v.flags.find(f => f.id === kind)?.title;
         return title ? [`${state === 'confirmed' ? 'Confirmed' : 'Dismissed'}: ${title}`] : [];

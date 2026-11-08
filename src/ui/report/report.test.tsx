@@ -54,7 +54,7 @@ describe('report page', () => {
     expect(within(paper).getAllByText('$45,500').length).toBeGreaterThan(0);
     expect(within(paper).getAllByText('$20,500').length).toBeGreaterThan(0);
     expect(within(paper).getByText('Dec 15, 2026')).toBeInTheDocument();
-    expect(within(paper).getByText(`The rules suggested “${deriveCase(decided(newCaseState(CODE, false, NOW)), RULES_V1).suggestion.summary}.”`)).toBeInTheDocument();
+    expect(within(paper).getByText('The rules suggested “Partial release, keep $45,000.”')).toBeInTheDocument();
     expect(within(paper).getByText(/covers the worst case with a 7% buffer/)).toBeInTheDocument();
     expect(within(paper).getByText('4 confirmed · 1 dismissed')).toBeInTheDocument();
   });
@@ -139,14 +139,14 @@ describe('report page edge paths', () => {
     await open(c => ({
       ...decided(c),
       activity: [
-        { ts: NOW, who: 'Forge', what: 'Case opened.' }, { ts: NOW, who: `Rules v${RULES_V1.version}`, what: 'Checks ran. 5 flags raised.' },
+        { ts: NOW, who: 'Forge', what: 'Case opened.' }, { ts: NOW, who: 'Rules v1.1', what: 'Checks ran. 5 flags raised.' },
         { ts: NOW, who: 'Analyst', what: 'Analyst confirmed a flag.' },
       ],
     }));
     const rows = within(within(paperOf()).getByRole('region', { name: 'Audit trail' })).getAllByRole('row').slice(1).map(r => r.textContent);
     expect(rows).toHaveLength(4);
     expect(rows[1]).toContain('Checks ran. 5 flags raised.');
-    expect(rows[2]).toContain(`Rules v${RULES_V1.version} suggested: ${deriveCase(decided(newCaseState(CODE, false, NOW)), RULES_V1).suggestion.summary}`);
+    expect(rows[2]).toContain('Rules v1.1 suggested: Partial release, keep $45,000');
   });
 
   it('leaves the suggestion out of the page and the JSON until a practice case is decided', async () => {
@@ -156,14 +156,13 @@ describe('report page edge paths', () => {
     URL.revokeObjectURL = vi.fn();
     vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
     await open(c => ({ ...decided(c), practice: true }));
-    const sugg = deriveCase(decided(newCaseState(CODE, true, NOW)), RULES_V1).suggestion;
     await user.click(screen.getByRole('button', { name: 'JSON' }));
     const json = await blobs[0]!.text();
-    for (const text of [sugg.summary, sugg.basis]) {
+    for (const text of ['Partial release, keep $45,000', 'Confirmed risk; the hold is more than the worst case']) {
       expect(json).not.toContain(text);
       expect(document.body.innerHTML).not.toContain(text);
     }
-    expect(document.body.innerHTML).not.toContain(`Rules v${RULES_V1.version} suggested`);
+    expect(document.body.innerHTML).not.toContain('Rules v1.1 suggested');
     delete (URL as { createObjectURL?: unknown }).createObjectURL;
     delete (URL as { revokeObjectURL?: unknown }).revokeObjectURL;
     vi.restoreAllMocks();
@@ -206,7 +205,7 @@ describe('exportCaseJson', () => {
     const json = JSON.parse(exportCaseJson(v, cs, buildReport(v, cs, 'Dana', RULES_V1))) as Record<string, unknown>;
     expect(json.code).toBe(CODE);
     expect(json.displayId).toBe(v.forged.displayId);
-    expect(json.rulesVersion).toBe(RULES_V1.version);
+    expect(json.rulesVersion).toBe('1.1');
     expect(json.decision).toMatchObject({ action: 'partial-release', keep: KEEP });
   });
 });
@@ -300,6 +299,45 @@ describe('path taken', () => {
     expect(row).toBeInTheDocument();
   });
 
+  it('marks a path row whose flag was changed outside the playbook', async () => {
+    await open(c => {
+      const full = answeredAll(decided(c));
+      return { ...full, flagStates: { ...full.flagStates, 'rate-hidden-by-growth': { state: 'dismissed', note: '' } } };
+    });
+    const path = within(screen.getByRole('region', { name: 'Path taken' }));
+    const row = path.getByText('Is the rate on older sales at least double the 30-day rate?').closest('li')!;
+    expect(within(row).getByText('changed outside the playbook')).toBeInTheDocument();
+    expect(row.querySelector('svg')).not.toBeNull();
+    expect(path.getAllByText('changed outside the playbook')).toHaveLength(1);
+  });
+
+  it('shows rules v1.0 and its suggestion for a case signed before rules v1.1', async () => {
+    const user = userEvent.setup();
+    const blobs: Blob[] = [];
+    URL.createObjectURL = vi.fn((b: Blob) => { blobs.push(b); return 'blob:x'; });
+    URL.revokeObjectURL = vi.fn();
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+    await open(c => ({
+      ...c, decidedAt: NOW, activity: [{ ts: NOW, who: 'Forge', what: 'Case opened.' }, { ts: NOW, who: 'Rules v1.0', what: 'Checks ran: 5 flags raised' }],
+      flagStates: { 'rate-hidden-by-growth': { state: 'confirmed', note: '' }, 'mc-over-limit': { state: 'confirmed', note: '' } },
+      decision: { action: 'deny', keep: 6400000, release: 0, reviewDate: '2026-12-15' },
+    }), STARTER_CODES[1]);
+    expect(within(paperOf()).getAllByText(/Rules v1\.0$/)).toHaveLength(2);
+    expect(within(within(paperOf()).getByRole('region', { name: 'Audit trail' })).getByText('Rules v1.0 suggested: Deny, keep all $64,000')).toBeInTheDocument();
+    expect(within(paperOf()).queryByText(/The rules suggested/)).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'JSON' }));
+    expect(await blobs[0]!.text()).toMatch(/"rulesVersion":\s*"1\.0"/);
+    delete (URL as { createObjectURL?: unknown }).createObjectURL;
+    delete (URL as { revokeObjectURL?: unknown }).revokeObjectURL;
+    vi.restoreAllMocks();
+  });
+
+  it('exports a null pathConclusion for a partial walk on a normal case', () => {
+    const cs = { ...decided(newCaseState(CODE, false, NOW)), playbook: { answers: { jump: ['yes'], hidden: ['yes'] }, collapsed: false } };
+    const v = deriveCase(cs, RULES_V1);
+    expect(exportCaseJson(v, cs, buildReport(v, cs, 'Dana', RULES_V1))).toMatch(/"pathConclusion":\s*null/);
+  });
+
   it('exports the stored rules version', () => {
     const cs = { ...answeredAll(decided(newCaseState(CODE, false, NOW))), rulesVersion: '0.9' };
     const v = deriveCase(cs, RULES_V1);
@@ -309,12 +347,12 @@ describe('path taken', () => {
 
   it('leaves the conclusion, expected path and suggestion out of the page of an undecided practice case', async () => {
     await open(c => answeredAll({ ...decided(c), practice: true }));
-    const sugg = deriveCase(decided(newCaseState(CODE, true, NOW)), RULES_V1).suggestion;
     const html = document.body.innerHTML;
-    for (const text of ['The playbook ends with', sugg.summary, sugg.basis, 'Expected']) expect(html).not.toContain(text);
+    const hiddenText = ['The playbook ends with', 'Partial release, keep $45,000', 'Confirmed risk; the hold is more than the worst case', 'Expected'];
+    for (const text of hiddenText) expect(html).not.toContain(text);
     for (const el of document.querySelectorAll('[title], [aria-label]')) {
       const attrs = `${el.getAttribute('title') ?? ''} ${el.getAttribute('aria-label') ?? ''}`;
-      for (const text of ['The playbook ends with', sugg.summary, sugg.basis, 'Expected']) expect(attrs).not.toContain(text);
+      for (const text of hiddenText) expect(attrs).not.toContain(text);
     }
     const path = within(screen.getByRole('region', { name: 'Path taken' }));
     expect(path.getByText('Did sales jump recently?')).toBeInTheDocument();
@@ -324,12 +362,12 @@ describe('path taken', () => {
   it('makes the export itself drop the suggestion from an undecided practice case', () => {
     const base = answeredAll({ ...decided(newCaseState(CODE, true, NOW)), decision: { action: 'deny', keep: 6600000, release: 0, reviewDate: '2026-12-15' } });
     const v = deriveCase(base, RULES_V1);
-    expect(base.decision!.action).not.toBe(v.suggestion.action);
+    expect(v.suggestion.summary).toBe('Partial release, keep $45,000');
     const json = (cs: CaseState) => exportCaseJson(v, cs, buildReport(v, cs, 'Dana', RULES_V1));
     const hidden = json(base);
-    for (const text of [v.suggestion.summary, 'consistency', 'pathConclusion']) expect(hidden).not.toContain(text);
+    for (const text of ['Partial release, keep $45,000', 'consistency', 'pathConclusion']) expect(hidden).not.toContain(text);
     const shown = json({ ...base, decidedAt: NOW });
-    for (const text of [v.suggestion.summary, 'consistency', 'pathConclusion']) expect(shown).toContain(text);
+    for (const text of ['Partial release, keep $45,000', 'consistency', 'pathConclusion']) expect(shown).toContain(text);
   });
 
   it('keeps consistency and pathConclusion out of the JSON of an undecided practice case', () => {

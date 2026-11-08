@@ -8,6 +8,7 @@ import { actionLabel } from '../../domain/labels';
 import type { ActionKind, Decision } from '../../domain/types';
 import { formatDay } from '../../lib/dates';
 import { formatMoney, type Cents } from '../../lib/money';
+import { practiceOpen } from '../../practice/open';
 import { sellerMessage } from '../../report/buildReport';
 import { Icon } from '../Icon';
 import { useShortcuts } from '../useShortcuts';
@@ -36,7 +37,7 @@ export function DecisionPanel() {
   const [holdNote, setHoldNote] = useState<string | null>(null);
   const [preview, setPreview] = useState(false);
 
-  const hidden = cs !== null && view !== null && cs.practice && cs.decidedAt === null;
+  const hidden = cs !== null && view !== null && practiceOpen(cs);
   const unchosen = hidden && cs.decision === null;
   const shown: Decision | null = !cs || !view ? null : cs.decision ?? view.suggestion;
   const differs = !!(shown && view && !hidden && (shown.action !== view.suggestion.action || shown.keep !== view.suggestion.keep));

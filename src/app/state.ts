@@ -27,7 +27,7 @@ export type AppAction =
   | { type: 'set-message-read'; read: boolean }
   | { type: 'set-second-reviewer'; name: string }
   | { type: 'mark-decided'; now: string; score: Score | null; decision: Decision }
-  | { type: 'answer-step'; answers: PlaybookAnswers; flagStates: Record<string, Flag['state']>; line: string | null; now: string }
+  | { type: 'answer-step'; answers: PlaybookAnswers; flagStates: Record<string, Flag['state']>; lines: string[]; now: string }
   | { type: 'set-playbook-collapsed'; collapsed: boolean }
   | { type: 'forge-open'; open: boolean }
   | { type: 'set-search'; text: string }
@@ -104,11 +104,11 @@ export function reducer(s: AppState, a: AppAction): AppState {
         }
         return {
           ...c, flagStates, playbook: { answers: a.answers, collapsed: c.playbook?.collapsed ?? false },
-          activity: a.line === null ? c.activity : log(c, s.analyst, a.now, a.line),
+          activity: log(c, s.analyst, a.now, ...a.lines),
         };
       });
     case 'set-playbook-collapsed':
-      return onOpen(s, c => ({ ...c, playbook: { answers: c.playbook?.answers ?? {}, collapsed: a.collapsed } }));
+      return onActive(s, c => ({ ...c, playbook: { answers: c.playbook?.answers ?? {}, collapsed: a.collapsed } }));
     case 'mark-decided':
       return onActive(s, c => (c.decidedAt !== null ? c : {
         ...c, decidedAt: a.now, score: a.score, rulesVersion: RULES_V1.version, decision: c.decision ?? a.decision,

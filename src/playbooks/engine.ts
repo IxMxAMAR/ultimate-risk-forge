@@ -40,18 +40,21 @@ export function walk(pb: Playbook, v: CaseView, answers: PlaybookAnswers): Walk 
 export function answerStep(pb: Playbook, v: CaseView, answers: PlaybookAnswers, stepId: string, chosen: string[]): { answers: PlaybookAnswers; flagStates: FlagStateMap } {
   const next: PlaybookAnswers = { ...answers, [stepId]: chosen };
   const from = pb.steps.findIndex(s => s.id === stepId);
-  const cleared: Step[] = [];
+  const own = pb.steps[from];
+  const withdrawn: Step[] = own && answers[stepId] ? [own] : [];
   for (const step of pb.steps.slice(from + 1)) {
-    if (skipped(step, v, next) && next[step.id]) { delete next[step.id]; cleared.push(step); }
+    if (skipped(step, v, next) && next[step.id]) { delete next[step.id]; withdrawn.push(step); }
   }
   const exists = (kind: string) => v.flags.some(f => f.id === kind);
-  const stillTouched = new Set<FlagKind>();
-  for (const step of pb.steps) if (next[step.id]) kindsOf(effectsOf(step, v, next[step.id]!)).forEach(k => stillTouched.add(k));
+  const stillSet = new Set<FlagKind>();
+  for (const step of pb.steps) if (next[step.id]) kindsOf(effectsOf(step, v, next[step.id]!)).forEach(k => stillSet.add(k));
+  // A replaced or cleared answer's flag goes back to raised only if no remaining answer sets it and the analyst has not changed it since (ARCHITECTURE.md §5).
   const flagStates: FlagStateMap = {};
-  for (const step of cleared) {
-    for (const k of kindsOf(effectsOf(step, v, answers[step.id] ?? []))) if (exists(k) && !stillTouched.has(k)) flagStates[k] = 'raised';
+  for (const step of withdrawn) {
+    for (const [k, state] of Object.entries(effectsOf(step, v, answers[step.id] ?? []))) {
+      if (!stillSet.has(k as FlagKind) && v.flags.find(f => f.id === k)?.state === state) flagStates[k] = 'raised';
+    }
   }
-  const own = pb.steps[from];
   if (own) for (const [k, state] of Object.entries(effectsOf(own, v, chosen))) if (exists(k)) flagStates[k] = state;
   return { answers: next, flagStates };
 }

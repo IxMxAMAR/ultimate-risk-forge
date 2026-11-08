@@ -1,4 +1,4 @@
-import type { CaseView } from '../../app/derive';
+import { rulesVersionOf, type CaseView } from '../../app/derive';
 import { RULES_V1 } from '../../domain/ruleset';
 import type { CaseState } from '../../persist/db';
 import { practiceOpen } from '../../practice/open';
@@ -10,7 +10,7 @@ export function exportCaseJson(v: CaseView, cs: CaseState, report: ReportModel):
   const chosen = cs.decision ?? (open ? null : v.suggestion);
   const { consistency, pathConclusion, ...shown } = report;
   return JSON.stringify({
-    code: cs.code, displayId: v.forged.displayId, rulesVersion: cs.rulesVersion ?? RULES_V1.version,
+    code: cs.code, displayId: v.forged.displayId, rulesVersion: rulesVersionOf(cs, RULES_V1),
     decision: chosen && { action: chosen.action, keep: chosen.keep, release: chosen.release, reviewDate: chosen.reviewDate },
     flags: v.flags, report: open ? { ...shown, recommendation: { ...shown.recommendation, override: null } } : report,
   }, null, 2);
