@@ -35,6 +35,8 @@ Practice score (`src/practice/score.ts`): `scoreCase(case, ruleFlags, analystFla
 
 Same facts, same answer (`src/report/consistency.ts`): `consistency(current, past)` compares the kept share of the hold with the median of past decisions (in line within 10 points) and gives the min–max kept share among past decisions with the same action, falling back to all. `REFERENCE_DECISIONS` holds four reference decisions for Hidden by growth.
 
+Report model (`src/report/buildReport.ts`, wording in `src/report/templates.ts`): `buildReport(view, caseState, analyst, rules)` returns everything the report page shows. The decision is the saved one, or the suggestion while undecided (status Draft until a decision is saved). The override box appears only when the saved action or kept amount differs from the suggestion, with the analyst's reason. Confidence is high once no flag is still raised. The money section reuses the exposure rows and says whether the kept amount covers the worst case and by what percent; the conditions, fallback date and "how this was estimated" text are filled from the case's own numbers (the top judged dispute reason decides whether the second condition is 3D Secure). The seller message is a plain-language letter for partial release, deny or approve; an edited message replaces it. Attachments are listed by page, and the consistency block compares the kept share with the reference decisions (in line when no references exist).
+
 ## 6. UI
 Console view for working a case, a report view, and the Forge modal. Severity is always icon, word and color. Keyboard shortcuts drive flag review.
 
