@@ -8,6 +8,7 @@ import { FlagsPanel } from '../ui/console/FlagsPanel';
 import { TopBar } from '../ui/console/TopBar';
 import { DisputesTab, type DisputesMode } from '../ui/console/DisputesTab';
 import { IconSprite } from '../ui/Icon';
+import { ReportPage } from '../ui/report/ReportPage';
 import { AppProvider, useApp } from './AppContext';
 
 import '../ui/console/console.css';
@@ -35,22 +36,34 @@ function Side() {
   );
 }
 
+function Page() {
+  const { state } = useApp();
+  const report = state.view === 'report';
+  return (
+    <div className={`app${report ? ' is-report' : ''}`}>
+      <TopBar />
+      {report ? <ReportPage /> : (
+        <>
+          <CaseHeader />
+          <div className="main">
+            <nav className="rail" aria-label="Cases and case data">
+              <CaseList />
+              <DataTabs />
+            </nav>
+            <Center />
+            <Side />
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 export function App({ store }: { store?: Store }) {
   return (
     <AppProvider store={store}>
       <IconSprite />
-      <div className="app">
-        <TopBar />
-        <CaseHeader />
-        <div className="main">
-          <nav className="rail" aria-label="Cases and case data">
-            <CaseList />
-            <DataTabs />
-          </nav>
-          <Center />
-          <Side />
-        </div>
-      </div>
+      <Page />
     </AppProvider>
   );
 }
