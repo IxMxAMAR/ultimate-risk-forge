@@ -1,6 +1,6 @@
 import type { PathCompareRow } from '../../playbooks/types';
 import type { Score } from '../../practice/score';
-import { PathRows } from '../console/PlaybookBar';
+import { PathRows } from '../PathRows';
 
 const PARTS = [
   { key: 'flags', label: 'Flags', max: 40 },

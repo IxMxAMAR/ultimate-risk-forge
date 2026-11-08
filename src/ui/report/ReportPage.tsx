@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { activeOf, useApp } from '../../app/AppContext';
 import { caseHash } from '../../app/routes';
 import { RULES_V1 } from '../../domain/ruleset';
+import { practiceOpen } from '../../practice/open';
 import { buildReport } from '../../report/buildReport';
 import { Button } from '../Button';
 import { Paper } from './Paper';
@@ -15,7 +16,7 @@ export function ReportPage() {
   const { state, view } = useApp();
   const cs = activeOf(state);
   const [active, setActive] = useState('rep-rec');
-  const hidden = cs !== null && cs.practice && cs.decidedAt === null;
+  const hidden = cs !== null && practiceOpen(cs);
   const concealed = cs !== null && view !== null && view.forged.surprise && cs.decidedAt === null;
   const report = useMemo(() => {
     if (!cs || !view || (hidden && cs.decision === null)) return null;

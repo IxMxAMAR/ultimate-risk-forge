@@ -7,6 +7,7 @@ import type { CaseState } from '../persist/db';
 import { formatDay } from '../lib/dates';
 import { formatMoney, type Cents } from '../lib/money';
 import { effectsOf, labelsOf, walk } from '../playbooks/engine';
+import { practiceOpen } from '../practice/open';
 import { consistency, REFERENCE_DECISIONS, type PastDecision } from './consistency';
 import { conditions, fallback, FIX_TEXT, howEstimated, letter } from './templates';
 
@@ -32,7 +33,7 @@ export function buildReport(v: CaseView, cs: CaseState, analyst: string, rules: 
   const d: Decision = cs.decision ?? suggestion;
   const overridden = cs.decision !== null && (cs.decision.action !== suggestion.action || cs.decision.keep !== suggestion.keep);
   const keptPct = Math.round(d.keep / held * 100);
-  const hidden = cs.practice && cs.decidedAt === null;
+  const hidden = practiceOpen(cs);
   const rulesVersion = cs.rulesVersion ?? rules.version;
   const path = v.playbook
     ? walk(v.playbook, v, cs.playbook?.answers ?? {}).steps.filter(s => s.status === 'done').map(s => ({

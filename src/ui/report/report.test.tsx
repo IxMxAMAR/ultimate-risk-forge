@@ -275,7 +275,7 @@ describe('path taken', () => {
     expect(paper.getByRole('region', { name: 'Path taken' })).toBeInTheDocument();
     expect(paper.getByRole('heading', { name: /^3\s*Path taken/ })).toBeInTheDocument();
     for (const [no, title] of [['4', 'Release the'], ['5', 'Message to the seller'], ['7', 'Audit trail']]) {
-      expect(paper.getByRole('heading', { name: new RegExp(`^${no}\s*${title}`) })).toBeInTheDocument();
+      expect(paper.getByRole('heading', { name: new RegExp(`^${no}\\s*${title}`) })).toBeInTheDocument();
     }
     expect(paper.getByText('Did sales jump recently?')).toBeInTheDocument();
     expect(within(screen.getByRole('navigation', { name: 'Report contents' })).getByRole('button', { name: /3\s*Path taken/ })).toBeInTheDocument();
@@ -289,6 +289,40 @@ describe('path taken', () => {
   it('shows the stored rules version of a decided case', async () => {
     await open(c => ({ ...decided(c), decidedAt: NOW, rulesVersion: '0.9' }));
     expect(within(paperOf()).getByText(/Rules v0\.9$/)).toBeInTheDocument();
+    const row = within(within(paperOf()).getByRole('region', { name: 'Audit trail' })).getByText(/Rules v0\.9 suggested/);
+    expect(row).toBeInTheDocument();
+  });
+
+  it('exports the stored rules version', () => {
+    const cs = { ...answeredAll(decided(newCaseState(CODE, false, NOW))), rulesVersion: '0.9' };
+    const v = deriveCase(cs, RULES_V1);
+    const json = exportCaseJson(v, cs, buildReport(v, cs, 'Dana', RULES_V1));
+    expect(json).toMatch(/"rulesVersion":\s*"0\.9"/);
+  });
+
+  it('leaves the conclusion, expected path and suggestion out of the page of an undecided practice case', async () => {
+    await open(c => answeredAll({ ...decided(c), practice: true }));
+    const sugg = deriveCase(decided(newCaseState(CODE, true, NOW)), RULES_V1).suggestion;
+    const html = document.body.innerHTML;
+    for (const text of ['The playbook ends with', sugg.summary, sugg.basis, 'Expected']) expect(html).not.toContain(text);
+    for (const el of document.querySelectorAll('[title], [aria-label]')) {
+      const attrs = `${el.getAttribute('title') ?? ''} ${el.getAttribute('aria-label') ?? ''}`;
+      for (const text of ['The playbook ends with', sugg.summary, sugg.basis, 'Expected']) expect(attrs).not.toContain(text);
+    }
+    const path = within(screen.getByRole('region', { name: 'Path taken' }));
+    expect(path.getByText('Did sales jump recently?')).toBeInTheDocument();
+    expect(path.getAllByText(/^Yes — /).length).toBeGreaterThan(0);
+  });
+
+  it('makes the export itself drop the suggestion from an undecided practice case', () => {
+    const base = answeredAll({ ...decided(newCaseState(CODE, true, NOW)), decision: { action: 'deny', keep: 6600000, release: 0, reviewDate: '2026-12-15' } });
+    const v = deriveCase(base, RULES_V1);
+    expect(base.decision!.action).not.toBe(v.suggestion.action);
+    const json = (cs: CaseState) => exportCaseJson(v, cs, buildReport(v, cs, 'Dana', RULES_V1));
+    const hidden = json(base);
+    for (const text of [v.suggestion.summary, 'consistency', 'pathConclusion']) expect(hidden).not.toContain(text);
+    const shown = json({ ...base, decidedAt: NOW });
+    for (const text of [v.suggestion.summary, 'consistency', 'pathConclusion']) expect(shown).toContain(text);
   });
 
   it('keeps consistency and pathConclusion out of the JSON of an undecided practice case', () => {

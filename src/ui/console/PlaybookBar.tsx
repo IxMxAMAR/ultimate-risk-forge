@@ -1,9 +1,10 @@
 import type { Suggestion } from '../../checks/suggest';
 import { formatDay } from '../../lib/dates';
 import { comparePath, labelsOf } from '../../playbooks/engine';
-import type { Answer, LookAt, PathCompareRow, PlaybookAnswers, StepView, Walk } from '../../playbooks/types';
+import type { Answer, LookAt, PlaybookAnswers, StepView, Walk } from '../../playbooks/types';
 import { Button } from '../Button';
 import { Icon } from '../Icon';
+import { PathRows } from '../PathRows';
 import './playbook.css';
 
 export interface PlaybookBarProps {
@@ -47,20 +48,6 @@ function Question({ sv, readOnly, showData, picked, expectedIds, onPick, onAnswe
         {step.multi && <Button variant="primary" small disabled={readOnly || picked.length === 0} onClick={() => onAnswer(step.id, picked)}>Next</Button>}
       </div>
     </div>
-  );
-}
-
-export function PathRows({ rows }: { rows: PathCompareRow[] }) {
-  return (
-    <ul className="pcmp">
-      {rows.map(r => (
-        <li key={r.stepId} className={r.ok ? 'ok' : 'bad'}>
-          <b>{r.title}</b>
-          <span>Yours: {r.yours} · Expected: {r.expected}</span>
-          <span className="pmark"><Icon name={r.ok ? 'check' : 'x'} />{r.ok ? 'Matches' : 'Differs'}</span>
-        </li>
-      ))}
-    </ul>
   );
 }
 
