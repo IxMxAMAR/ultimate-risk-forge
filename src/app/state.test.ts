@@ -80,6 +80,12 @@ describe('reducer', () => {
     expect(active(s).activity.map(a => a.what)).toEqual(['Sam signed the report.', 'Sam marked the case decided.']);
   });
 
+  it('mark-decided on a decided case changes nothing', () => {
+    const once = reducer(base(), { type: 'mark-decided', now: NOW, score: null });
+    const again = reducer(once, { type: 'mark-decided', now: '2026-11-09T10:00:00.000Z', score: null });
+    expect(active(again)).toBe(active(once));
+  });
+
   it('opens cases and ignores unknown codes', () => {
     const s = { ...base(), view: 'report' as const, selectedFlagId: 'a', tab: 'owners' as const };
     expect(reducer(s, { type: 'open-case', code: 'PD-009R-HF' })).toMatchObject({ view: 'console', tab: 'disputes', selectedFlagId: null });

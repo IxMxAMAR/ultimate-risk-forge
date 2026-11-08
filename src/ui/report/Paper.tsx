@@ -36,11 +36,11 @@ export function Paper({ v, cs, report, hidden }: { v: CaseView; cs: CaseState; r
   const place = (cents: number) => `${Math.min(100, Math.max(0, cents / held * 100))}%`;
   const rule = fix.text.indexOf(RULE_LEAD);
   const split = report.fallback.indexOf(': ');
-  const audit = [
-    { ts: cs.openedAt, who: 'Forge', what: `Case ${header.caseId} opened. Seller asked to release the ${formatMoney(held)} hold.` },
-    { ts: cs.openedAt, who: `Rules ${header.rules}`, what: `Checks ran. ${v.ruleFlags.length} flags raised.${hidden ? '' : ` Suggested: ${v.suggestion.summary}.`}` },
-    ...report.audit,
-  ];
+  const audit = [...report.audit];
+  if (!hidden) {
+    const ran = Math.max(0, audit.findIndex(a => a.what.startsWith('Checks ran')) + 1);
+    audit.splice(ran, 0, { ts: audit[ran - 1]?.ts ?? cs.openedAt, who: 'Rules', what: `Rules ${header.rules} suggested: ${v.suggestion.summary}` });
+  }
   const keepLabel = money.keep > 0 ? `Release the remaining ${formatMoney(money.keep)} when` : 'Conditions to watch';
 
   return (
@@ -141,7 +141,7 @@ export function Paper({ v, cs, report, hidden }: { v: CaseView; cs: CaseState; r
         <div className="pstat"><b>~{fix.affected}</b>sellers this would affect<br />(Forge estimate)</div>
       </section>
 
-      <section className="sec audit" id="rep-6">
+      <section className="sec audit" id="rep-6" aria-label="Audit trail">
         <h3><span className="no">6</span>Audit trail <span className="aside">same facts → same answer</span></h3>
         <table>
           <thead><tr><th>Time</th><th>Who</th><th>What happened</th></tr></thead>

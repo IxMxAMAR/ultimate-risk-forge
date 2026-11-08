@@ -88,7 +88,7 @@ export function reducer(s: AppState, a: AppAction): AppState {
     case 'set-message-read': return onActive(s, c => ({ ...c, messageRead: a.read }));
     case 'set-second-reviewer': return onActive(s, c => ({ ...c, secondReviewer: a.name }));
     case 'mark-decided':
-      return onActive(s, c => ({
+      return onActive(s, c => (c.decidedAt !== null ? c : {
         ...c, decidedAt: a.now, score: a.score,
         activity: log(c, s.analyst, a.now, `${s.analyst} signed the report.`, `${s.analyst} marked the case decided.`),
       }));

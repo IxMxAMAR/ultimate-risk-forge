@@ -166,11 +166,11 @@
 .pr-sugg{margin-top:12px;padding-top:10px;border-top:1px dashed var(--border);font-size:12.5px;color:var(--fg2)}
 
 @media print{
-  body{background:#fff}
-  .app{display:block;height:auto;min-width:0}
-  .topbar,.rpt .rail,.rpt .side{display:none}
-  .main.rpt{display:block}
-  .rpt .desk{padding:0;background:none;overflow:visible}
-  .paper{box-shadow:none;border-radius:0;max-width:none;padding:0}
-  .find,.sec,.rec,.policy{break-inside:avoid}
+  body{background:#fff;print-color-adjust:exact;-webkit-print-color-adjust:exact}
+  .app.is-report{display:block;height:auto;min-width:0}
+  .app.is-report .topbar,.app.is-report .rpt .rail,.app.is-report .rpt .side{display:none}
+  .app.is-report .main.rpt{display:block}
+  .app.is-report .rpt .desk{padding:0;background:none;overflow:visible}
+  .app.is-report .paper{box-shadow:none;border-radius:0;max-width:none;padding:0;print-color-adjust:exact;-webkit-print-color-adjust:exact}
+  .app.is-report .find,.app.is-report .sec,.app.is-report .rec,.app.is-report .policy{break-inside:avoid}
 }

@@ -35,7 +35,7 @@ export function SidePanel({ v, cs, report, hidden }: { v: CaseView; cs: CaseStat
   const checks = [
     { ok: !v.flags.some(f => f.state === 'raised'), text: `All ${v.flags.length} flags reviewed` },
     { ok: hidden || !differs || cs.overrideReason.trim() !== '', text: hidden ? 'Reason given where needed' : 'Reason given for changing the suggestion' },
-    { ok: d.action !== 'partial-release' || d.keep >= exposure.high, text: 'Money adds up (hold ≥ worst case)' },
+    { ok: d.action !== 'partial-release' || report.money.covers, text: 'Money adds up (hold ≥ worst case)' },
   ];
   const reviewerOk = !secondRequired || cs.secondReviewer.trim() !== '';
   const canDecide = !signed && checks.every(c => c.ok) && cs.messageRead && reviewerOk;
