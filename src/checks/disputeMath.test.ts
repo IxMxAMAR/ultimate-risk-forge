@@ -112,3 +112,71 @@ describe('tiny samples', () => {
     expect(s.outcomesJudged.winRate).toBeNaN();
   });
 });
+
+describe('UTC month attribution near midnight', () => {
+  const edge = (): Input => ({
+    asOf: '2026-11-08',
+    payments: [
+      { id: 'late', ts: '2026-06-30T23:30:00.000Z', amount: 9700, brand: 'visa', last4: '4242', buyerId: 'b1' },
+      { id: 'early', ts: '2026-07-01T00:30:00.000Z', amount: 9700, brand: 'visa', last4: '4242', buyerId: 'b2' },
+    ],
+    disputes: [{ id: 'd1', paymentId: 'late', filedTs: '2026-07-01T00:30:00.000Z', amount: 9700, reason: 'fraudulent', status: 'lost', brand: 'visa' }],
+    refunds: [],
+  });
+  const check = (s: ReturnType<typeof disputeStats>) => {
+    const [jun, jul] = s.byMonth;
+    expect([jun!.month, jun!.payments, jun!.disputes, jun!.filedDisputes]).toEqual(['2026-06', 1, 1, 0]);
+    expect([jul!.month, jul!.payments, jul!.disputes, jul!.filedDisputes]).toEqual(['2026-07', 1, 0, 1]);
+  };
+
+  it.each(['UTC', 'Asia/Kolkata', 'America/Los_Angeles'])('attributes by UTC month in %s', tz => {
+    const before = process.env.TZ;
+    process.env.TZ = tz;
+    try {
+      check(disputeStats(edge(), RULES_V1));
+    } finally {
+      if (before === undefined) delete process.env.TZ;
+      else process.env.TZ = before;
+    }
+  });
+});
+
+describe('boundaries', () => {
+  const at = (id: string, ts: string): Payment => ({ id, ts, amount: 9700, brand: 'visa', last4: '4242', buyerId: id });
+
+  it('uses (asOf - 30d, asOf] for payments', () => {
+    const payments = [
+      at('out', '2026-10-09T23:59:59.999Z'),
+      at('in1', '2026-10-10T00:00:00.000Z'),
+      at('in2', '2026-11-08T23:59:59.999Z'),
+      at('after', '2026-11-09T00:00:00.000Z'),
+    ];
+    const s = disputeStats({ asOf: '2026-11-08', payments, disputes: [], refunds: [] }, RULES_V1);
+    expect(s.payments30d).toBe(2);
+    expect(s.last30Sales).toBe(2 * 9700);
+  });
+
+  it('uses (asOf - 30d, asOf] for disputes by filedTs', () => {
+    const payments = [at('p', '2026-06-10T12:00:00.000Z')];
+    const filed = (id: string, ts: string): Dispute => ({ id, paymentId: 'p', filedTs: ts, amount: 9700, brand: 'visa', reason: 'fraudulent', status: 'open' });
+    const disputes = [
+      filed('out', '2026-10-09T23:59:59.999Z'),
+      filed('in1', '2026-10-10T00:00:00.000Z'),
+      filed('in2', '2026-11-08T23:59:59.999Z'),
+      filed('after', '2026-11-09T00:00:00.000Z'),
+    ];
+    const s = disputeStats({ asOf: '2026-11-08', payments, disputes, refunds: [] }, RULES_V1);
+    expect(s.disputes30d).toBe(2);
+  });
+
+  it('judges a month ending exactly asOf - 60 days, not one ending a day later', () => {
+    const payments = [at('jun', '2026-06-15T12:00:00.000Z'), at('jul', '2026-07-15T12:00:00.000Z')];
+    // June ends 06-30 = 2026-08-29 - 60 days
+    const exact = disputeStats({ asOf: '2026-08-29', payments, disputes: [], refunds: [] }, RULES_V1);
+    expect(exact.judgedMonths).toEqual(['2026-06']);
+    expect(exact.immatureMonths).toEqual(['2026-07']);
+    const dayEarly = disputeStats({ asOf: '2026-08-28', payments, disputes: [], refunds: [] }, RULES_V1);
+    expect(dayEarly.judgedMonths).toEqual([]);
+    expect(dayEarly.immatureMonths).toEqual(['2026-06', '2026-07']);
+  });
+});
