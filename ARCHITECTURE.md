@@ -29,6 +29,10 @@ Flags (`src/checks/flags.ts`): `runChecks(case, stats, rules)` raises five rule 
 
 Suggested decision (`src/checks/suggest.ts`): `suggestDecision` looks only at confirmed flags. Two or more critical → deny and keep everything held; one critical or any high → partial release, keeping the lesser of the held amount and the hold to keep for the high money-at-risk figure; otherwise release the hold, reviewed on asOf. Action and reason names shown to the user live in `src/domain/labels.ts`.
 
+Practice score (`src/practice/score.ts`): `scoreCase(case, ruleFlags, analystFlags, decision, worst)` scores out of 100. Flags 40: each planted kind earns an equal share when its rule flag is confirmed or an analyst flag's evidence ids overlap the rule flag's; each confirmed look-alike costs half a share; clamped 0–40. Dismissals 15: the share of look-alikes dismissed (or, with no look-alikes, one minus the share of planted flags dismissed). Decision 30: an acceptable action scores 30, an adjacent one 15. Amounts 15: the kept amount covers the worst case and is not more than the held amount. The total is rounded; `missed` and `wronglyConfirmed` list flag titles.
+
+Same facts, same answer (`src/report/consistency.ts`): `consistency(current, past)` compares the kept share of the hold with the median of past decisions (in line within 10 points) and gives the min–max kept share among past decisions with the same action, falling back to all. `REFERENCE_DECISIONS` holds four reference decisions for Hidden by growth.
+
 ## 6. UI
 Console view for working a case, a report view, and the Forge modal. Severity is always icon, word and color. Keyboard shortcuts drive flag review.
 
