@@ -7,4 +7,10 @@ Risk Forge is an offline browser app for practising risk assessment on fictional
 - `npm run dev` starts the dev server.
 - `npm test` runs the tests; `npm run typecheck` checks types; `npm run build` builds the static bundle.
 - `npm run check:offline` builds and fails if the bundle refers to any remote address.
-- `npm run qa:shots` builds and saves Chrome screenshots of the console, report and Forge screens into `qa-shots/` (set `CHROME_PATH` if Chrome is elsewhere).
+- `npm run qa:shots` builds and saves Chrome screenshots of the console (also with the playbook at its third step), report and Forge screens into `qa-shots/` (set `CHROME_PATH` if Chrome is elsewhere).
+
+## Playbooks
+
+Cases of the Hidden by growth type come with a playbook: six short questions (sales jump, hidden rate, card brands, refunds, growth explained, money) that walk you through the evidence. Each question has "Look at" chips that open the data it is about, and each answer confirms or dismisses the matching flags. The bar ends with a suggested decision you can use as is, and the report lists the path you took. Press 1–4 to pick an answer; a step that does not apply is skipped, and you can collapse the bar or reopen an earlier step.
+
+In practice mode the bar shows no "Data says" marks, no Accept button and no conclusion until you mark the case decided; then it compares your path with the expected one.
