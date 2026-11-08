@@ -1,9 +1,15 @@
 import type { CaseView } from '../app/derive';
 import type { FlagKind } from '../domain/types';
-import type { FlagEffects, FlagStateMap, Playbook, PlaybookAnswers, Step, StepStatus, StepView, Walk } from './types';
+import type { Answer, FlagEffects, FlagStateMap, PathCompareRow, Playbook, PlaybookAnswers, Step, StepStatus, StepView, Walk } from './types';
 
 const skipped = (s: Step, v: CaseView, answers: PlaybookAnswers) => !!s.when && !s.when(v, answers);
 const kindsOf = (e: FlagEffects) => Object.keys(e) as FlagKind[];
+const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every(x => b.includes(x));
+
+export const labelsOf = (answers: Answer[], ids: string[]): string => {
+  const names = ids.map(id => answers.find(a => a.id === id)?.label ?? id);
+  return names.length ? names.join(', ') : '—';
+};
 
 // Chosen answers decide the flags; every other kind the step could touch is dismissed (ARCHITECTURE.md §5).
 export function effectsOf(step: Step, v: CaseView, chosen: string[]): FlagEffects {
@@ -54,4 +60,17 @@ export function expectedPath(pb: Playbook, v: CaseView): PlaybookAnswers {
   const answers: PlaybookAnswers = {};
   for (let w = walk(pb, v, answers); w.current; w = walk(pb, v, answers)) answers[w.current.step.id] = w.current.step.expected(v);
   return answers;
+}
+
+// One row per step the analyst walked or the expected path walked; the bar and the practice result both render these (ARCHITECTURE.md §6).
+export function comparePath(w: Walk, expected: PlaybookAnswers): PathCompareRow[] {
+  return w.steps.filter(s => s.status !== 'skipped' || s.step.id in expected).map(s => {
+    const want = expected[s.step.id];
+    const yours = s.status === 'skipped' ? undefined : s.chosen;
+    return {
+      stepId: s.step.id, title: s.step.title,
+      yours: yours ? labelsOf(s.answers, yours) : 'skipped', expected: want ? labelsOf(s.answers, want) : 'skipped',
+      ok: !!yours && !!want && sameSet(yours, want),
+    };
+  });
 }

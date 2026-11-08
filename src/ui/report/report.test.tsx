@@ -5,6 +5,7 @@ import { App } from '../../app/App';
 import { deriveCase } from '../../app/derive';
 import { encodeCaseCode } from '../../domain/caseCode';
 import { RULES_V1 } from '../../domain/ruleset';
+import { expectedPath } from '../../playbooks/engine';
 import { STARTER_CODES } from '../../forge/starters';
 import { newCaseState, openStore, type CaseState } from '../../persist/db';
 import { buildReport } from '../../report/buildReport';
@@ -259,5 +260,66 @@ describe('final review fixes', () => {
   it('labels the audit times UTC', async () => {
     await open(c => ({ ...agreeing(c), activity: [{ ts: '2026-11-08T10:05:00.000Z', who: 'Sam', what: 'Did a thing' }] }));
     expect(within(paperOf()).getByText('10:05 UTC')).toBeInTheDocument();
+  });
+});
+
+describe('path taken', () => {
+  const answeredAll = (c: CaseState): CaseState => {
+    const v = deriveCase(c, RULES_V1);
+    return { ...c, playbook: { answers: expectedPath(v.playbook!, v), collapsed: false } };
+  };
+
+  it('adds section 3 Path taken and renumbers the later sections', async () => {
+    await open(c => answeredAll(decided(c)));
+    const paper = within(paperOf());
+    expect(paper.getByRole('region', { name: 'Path taken' })).toBeInTheDocument();
+    expect(paper.getByRole('heading', { name: /^3\s*Path taken/ })).toBeInTheDocument();
+    for (const [no, title] of [['4', 'Release the'], ['5', 'Message to the seller'], ['7', 'Audit trail']]) {
+      expect(paper.getByRole('heading', { name: new RegExp(`^${no}\s*${title}`) })).toBeInTheDocument();
+    }
+    expect(paper.getByText('Did sales jump recently?')).toBeInTheDocument();
+    expect(within(screen.getByRole('navigation', { name: 'Report contents' })).getByRole('button', { name: /3\s*Path taken/ })).toBeInTheDocument();
+  });
+
+  it('says so when no playbook step is answered', async () => {
+    await open();
+    expect(within(paperOf()).getByText('No playbook steps answered yet.')).toBeInTheDocument();
+  });
+
+  it('shows the stored rules version of a decided case', async () => {
+    await open(c => ({ ...decided(c), decidedAt: NOW, rulesVersion: '0.9' }));
+    expect(within(paperOf()).getByText(/Rules v0\.9$/)).toBeInTheDocument();
+  });
+
+  it('keeps consistency and pathConclusion out of the JSON of an undecided practice case', () => {
+    const base = answeredAll(decided(newCaseState(CODE, true, NOW)));
+    const v = deriveCase(base, RULES_V1);
+    const json = (cs: CaseState) => exportCaseJson(v, cs, buildReport(v, cs, 'Dana', RULES_V1));
+    const hidden = json(base);
+    expect(hidden).not.toContain('consistency');
+    expect(hidden).not.toContain('pathConclusion');
+    expect(hidden).toContain('"path"');
+    const shown = json({ ...base, decidedAt: NOW });
+    expect(shown).toContain('"consistency"');
+    expect(shown).toContain('"pathConclusion"');
+    expect(json({ ...base, practice: false })).toContain('"pathConclusion"');
+  });
+
+  it('lists a mismatch against the expected path once a practice case is decided', async () => {
+    const user = userEvent.setup();
+    await open(c => {
+      const full = answeredAll({ ...decided(c), practice: true });
+      return { ...full, playbook: { answers: { ...full.playbook!.answers, jump: ['no'] }, collapsed: false } };
+    });
+    expect(screen.queryByText('Your path vs the expected path')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('checkbox', { name: /Seller message read/ }));
+    await user.type(screen.getByRole('textbox', { name: 'Reviewer name' }), 'Dana');
+    await user.click(screen.getByRole('button', { name: 'Mark case decided' }));
+    const result = await screen.findByRole('region', { name: 'Practice result' });
+    expect(within(result).getByText('Your path vs the expected path')).toBeInTheDocument();
+    const row = within(result).getByText('Sales jump').closest('li')!;
+    expect(row).toHaveClass('bad');
+    expect(row).toHaveTextContent('Differs');
+    expect(row.querySelector('svg')).not.toBeNull();
   });
 });

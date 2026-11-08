@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useApp } from '../../app/AppContext';
 import type { CaseView } from '../../app/derive';
 import { RULES_V1 } from '../../domain/ruleset';
+import { comparePath, expectedPath, walk } from '../../playbooks/engine';
 import { formatMoney } from '../../lib/money';
 import type { CaseState } from '../../persist/db';
 import { scoreCase } from '../../practice/score';
@@ -77,7 +78,7 @@ export function SidePanel({ v, cs, report, hidden }: { v: CaseView; cs: CaseStat
       </div>
 
       {signed && cs.score
-        ? <PracticeResult score={cs.score} suggested={suggestion.summary} />
+        ? <PracticeResult score={cs.score} suggested={suggestion.summary} path={v.playbook ? comparePath(walk(v.playbook, v, cs.playbook?.answers ?? {}), expectedPath(v.playbook, v)) : []} />
         : (
           <div className="panel">
             <span className="label">Before you send</span>

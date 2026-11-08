@@ -9,10 +9,11 @@ export const SECTIONS = [
   { id: 'rep-rec', no: '★', title: 'Recommendation' },
   { id: 'rep-1', no: '1', title: 'What we found' },
   { id: 'rep-2', no: '2', title: 'Money at risk' },
-  { id: 'rep-3', no: '3', title: 'Release the rest when' },
-  { id: 'rep-4', no: '4', title: 'Message to the seller' },
-  { id: 'rep-5', no: '5', title: 'Fix for everyone' },
-  { id: 'rep-6', no: '6', title: 'Audit trail' },
+  { id: 'rep-3', no: '3', title: 'Path taken' },
+  { id: 'rep-4', no: '4', title: 'Release the rest when' },
+  { id: 'rep-5', no: '5', title: 'Message to the seller' },
+  { id: 'rep-6', no: '6', title: 'Fix for everyone' },
+  { id: 'rep-7', no: '7', title: 'Audit trail' },
 ];
 
 const CHIP = { critical: ['d-crit', 'CRIT', 'oct'], high: ['d-high', 'HIGH', 'tri'], medium: ['d-med', 'MED', 'tri'] } as const;

@@ -1,7 +1,7 @@
 import { deriveCase, type CaseView } from '../app/derive';
 import { RULES_V1 } from '../domain/ruleset';
 import { newCaseState } from '../persist/db';
-import { answerStep, effectsOf, expectedPath, walk } from './engine';
+import { answerStep, comparePath, effectsOf, expectedPath, walk } from './engine';
 import type { Playbook, Step } from './types';
 
 const ts = '2026-01-01T00:00:00.000Z';
@@ -65,5 +65,18 @@ describe('playbook engine', () => {
 
   it('expected path answers every non-skipped step', () => {
     expect(expectedPath(pb, v)).toEqual({ a: ['yes'], b: ['mc'], c: ['ok'] });
+  });
+
+  it('compares your path with the expected one, row by row', () => {
+    const rows = comparePath(walk(pb, v, { a: ['no'] }), { a: ['yes'], b: ['mc'], c: ['ok'] });
+    expect(rows).toEqual([
+      { stepId: 'a', title: 'A', yours: 'No', expected: 'Yes', ok: false },
+      { stepId: 'b', title: 'B', yours: 'skipped', expected: 'MC', ok: false },
+      { stepId: 'c', title: 'C', yours: '—', expected: 'OK', ok: false },
+    ]);
+    const same = comparePath(walk(pb, v, { a: ['yes'], b: ['mc'], c: ['ok'] }), { a: ['yes'], b: ['mc'], c: ['ok'] });
+    expect(same.every(r => r.ok)).toBe(true);
+    expect(comparePath(walk(pb, v, { a: ['no'], c: ['ok'] }), { a: ['no'], c: ['ok'] }).map(r => r.stepId)).toEqual(['a', 'c']);
+    expect(comparePath(walk(pb, v, { a: ['yes'], b: ['mc', 'visa'], c: ['ok'] }), { a: ['yes'], b: ['visa', 'mc'], c: ['ok'] })[1]).toMatchObject({ yours: 'MC, Visa', ok: true });
   });
 });

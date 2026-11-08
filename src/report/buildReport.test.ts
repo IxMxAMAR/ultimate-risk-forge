@@ -4,6 +4,8 @@ import { exposure } from '../checks/exposure';
 import type { DisputeStats } from '../checks/disputeMath';
 import { RULES_V1 } from '../domain/ruleset';
 import type { Decision, Flag, ForgedCase } from '../domain/types';
+import { deriveCase } from '../app/derive';
+import { expectedPath, walk } from '../playbooks/engine';
 import { newCaseState } from '../persist/db';
 import { buildReport, sellerMessage } from './buildReport';
 
@@ -129,5 +131,40 @@ describe('buildReport', () => {
     expect(approve).toContain('releasing all of it');
     expect(approve.endsWith('— Risk Operations')).toBe(true);
     expect(approve).not.toContain("We'll look again");
+  });
+});
+
+describe('buildReport path taken', () => {
+  const NOW = '2026-11-08T10:00:00.000Z';
+  const open = newCaseState('PD-009R-HF', false, NOW);
+  const v0 = deriveCase(open, RULES_V1);
+  const answers = expectedPath(v0.playbook!, v0);
+  const answered = { ...open, playbook: { answers, collapsed: false } };
+  const va = deriveCase(answered, RULES_V1);
+
+  it('lists the answered steps with the flags they confirmed or dismissed', () => {
+    const r = buildReport(va, answered, 'A', RULES_V1);
+    const w = walk(va.playbook!, va, answers);
+    expect(r.path).toHaveLength(w.answered);
+    expect(r.path[0]?.question).toBe(w.steps.find(s => s.status === 'done')!.step.question);
+    expect(r.path.flatMap(p => p.sets).some(t => t.startsWith('Confirmed: '))).toBe(true);
+    const documented = { ...answered, playbook: { answers: { ...answers, explained: ['documented'] }, collapsed: false } };
+    expect(buildReport(va, documented, 'A', RULES_V1).path.flatMap(p => p.sets)).toContain('Dismissed: 4-month-old account growing 5× in a month');
+    expect(r.pathConclusion).toBe(va.suggestion.summary);
+    expect(buildReport(v0, open, 'A', RULES_V1).path).toEqual([]);
+  });
+
+  it('hides the conclusion in an undecided practice case but keeps the own path', () => {
+    const practice = { ...answered, practice: true };
+    const r = buildReport(va, practice, 'A', RULES_V1);
+    expect(r.pathConclusion).toBeNull();
+    expect(r.path.length).toBeGreaterThan(0);
+    expect(buildReport(va, { ...practice, decidedAt: NOW }, 'A', RULES_V1).pathConclusion).toBe(va.suggestion.summary);
+  });
+
+  it('shows the stored rules version', () => {
+    const r = buildReport(va, { ...answered, rulesVersion: '0.9' }, 'A', RULES_V1);
+    expect(r.header.rules).toBe('v0.9');
+    expect(r.footer).toContain('Rules v0.9');
   });
 });

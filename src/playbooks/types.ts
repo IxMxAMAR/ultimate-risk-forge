@@ -19,3 +19,4 @@ export type StepStatus = 'done' | 'current' | 'upcoming' | 'skipped';
 export interface StepView { step: Step; status: StepStatus; chosen: string[]; answers: Answer[]; lookAt: LookAt[]; drift: boolean }
 export interface Walk { steps: StepView[]; current: StepView | null; done: boolean; answered: number; total: number }
 export type FlagStateMap = Record<string, Flag['state']>;
+export interface PathCompareRow { stepId: string; title: string; yours: string; expected: string; ok: boolean }

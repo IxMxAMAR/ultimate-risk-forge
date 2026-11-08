@@ -29,7 +29,7 @@ function Note({ lead, rest }: { lead: string; rest: string }) {
   return <div className="pnote"><div><b>{lead}</b> {rest}</div></div>;
 }
 
-// The white report paper; sections 1–6 are ported from the report mockup (ARCHITECTURE.md §6).
+// The white report paper; sections 1–7 are ported from the report mockup (ARCHITECTURE.md §6).
 export function Paper({ v, cs, report, hidden }: { v: CaseView; cs: CaseState; report: ReportModel; hidden: boolean }) {
   const { header, recommendation: rec, findings, money, fix } = report;
   const { forged } = v;
@@ -123,34 +123,52 @@ export function Paper({ v, cs, report, hidden }: { v: CaseView; cs: CaseState; r
           </div>
           <Note lead="How we estimated:" rest={money.howEstimated} />
         </section>
+      </div>
 
-        <section className="sec" id="rep-3">
-          <h3><span className="no">3</span>{keepLabel}</h3>
+      <section className="sec path" id="rep-3" aria-label="Path taken">
+        <h3><span className="no">3</span>Path taken <span className="aside">{report.path.length} steps answered</span></h3>
+        {report.path.length === 0 ? <p className="path-empty">No playbook steps answered yet.</p> : (
+          <ol className="path-list">
+            {report.path.map((p, i) => (
+              <li key={p.question}>
+                <span className="num path-no">{i + 1}</span>
+                <div><b>{p.question}</b><span>{p.answer}</span></div>
+                <span className="path-sets">{p.sets.map(t => <span key={t} className={`pc ${t.startsWith('Confirmed') ? 'high' : 'off'}`}><Icon name={t.startsWith('Confirmed') ? 'check' : 'x'} />{t}</span>)}</span>
+              </li>
+            ))}
+          </ol>
+        )}
+        {report.pathConclusion && <div className="path-end"><Icon name="check" /><span>The playbook ends with: <b>{report.pathConclusion}</b></span></div>}
+      </section>
+
+      <div className="cols">
+        <section className="sec" id="rep-4">
+          <h3><span className="no">4</span>{keepLabel}</h3>
           <ul className="conds">
             {report.conditions.map(c => <li key={c}><span className="box" /><span>{c}</span></li>)}
           </ul>
           <Note lead={`${report.fallback.slice(0, split)}:`} rest={report.fallback.slice(split + 2)} />
         </section>
 
-        <section className="sec" id="rep-4">
-          <h3><span className="no">4</span>Message to the seller <span className="aside">ready to send</span></h3>
+        <section className="sec" id="rep-5">
+          <h3><span className="no">5</span>Message to the seller <span className="aside">ready to send</span></h3>
           <div className="letter">
             {report.message.split('\n\n').map((p, i) => <p key={i}>{p}</p>)}
           </div>
         </section>
       </div>
 
-      <section className="policy" id="rep-5" aria-label="Fix for everyone">
+      <section className="policy" id="rep-6" aria-label="Fix for everyone">
         <span className="ic"><Icon name="bulb" /></span>
         <div>
-          <h4><span className="num">5</span>Fix for everyone</h4>
+          <h4><span className="num">6</span>Fix for everyone</h4>
           <p>{fix.text.slice(0, rule)}<b>Proposed rule:</b>{fix.text.slice(rule + RULE_LEAD.length)}</p>
         </div>
         <div className="pstat"><b>~{fix.affected}</b>sellers this would affect<br />(Forge estimate)</div>
       </section>
 
-      <section className="sec audit" id="rep-6" aria-label="Audit trail">
-        <h3><span className="no">6</span>Audit trail <span className="aside">same facts → same answer</span></h3>
+      <section className="sec audit" id="rep-7" aria-label="Audit trail">
+        <h3><span className="no">7</span>Audit trail <span className="aside">same facts → same answer</span></h3>
         <table>
           <thead><tr><th>Time</th><th>Who</th><th>What happened</th></tr></thead>
           <tbody>

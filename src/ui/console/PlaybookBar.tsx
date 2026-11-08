@@ -1,6 +1,7 @@
 import type { Suggestion } from '../../checks/suggest';
 import { formatDay } from '../../lib/dates';
-import type { Answer, LookAt, PlaybookAnswers, StepView, Walk } from '../../playbooks/types';
+import { comparePath, labelsOf } from '../../playbooks/engine';
+import type { Answer, LookAt, PathCompareRow, PlaybookAnswers, StepView, Walk } from '../../playbooks/types';
 import { Button } from '../Button';
 import { Icon } from '../Icon';
 import './playbook.css';
@@ -11,12 +12,6 @@ export interface PlaybookBarProps {
   onPick(ids: string[]): void; onAnswer(stepId: string, chosen: string[]): void; onReopen(stepId: string): void;
   onLook(look: LookAt): void; onAcceptAll(): void; onUseDecision(): void; onCollapse(collapsed: boolean): void;
 }
-
-const labelsOf = (answers: Answer[], ids: string[]) => {
-  const names = ids.map(id => answers.find(a => a.id === id)?.label ?? id);
-  return names.length ? names.join(', ') : '—';
-};
-const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every(x => b.includes(x));
 
 export function toggle(answers: Answer[], picked: string[], id: string): string[] {
   if (picked.includes(id)) return picked.filter(x => x !== id);
@@ -55,21 +50,16 @@ function Question({ sv, readOnly, showData, picked, expectedIds, onPick, onAnswe
   );
 }
 
-function Compare({ walk, expected }: { walk: Walk; expected: PlaybookAnswers }) {
+export function PathRows({ rows }: { rows: PathCompareRow[] }) {
   return (
     <ul className="pcmp">
-      {walk.steps.filter(s => s.status !== 'skipped' || s.step.id in expected).map(s => {
-        const want = expected[s.step.id];
-        const yours = s.status === 'skipped' ? undefined : s.chosen;
-        const ok = !!yours && !!want && sameSet(yours, want);
-        return (
-          <li key={s.step.id} className={ok ? 'ok' : 'bad'}>
-            <b>{s.step.title}</b>
-            <span>Yours: {yours ? labelsOf(s.answers, yours) : 'skipped'} · Expected: {want ? labelsOf(s.answers, want) : 'skipped'}</span>
-            <span className="pmark"><Icon name={ok ? 'check' : 'x'} />{ok ? 'Matches' : 'Differs'}</span>
-          </li>
-        );
-      })}
+      {rows.map(r => (
+        <li key={r.stepId} className={r.ok ? 'ok' : 'bad'}>
+          <b>{r.title}</b>
+          <span>Yours: {r.yours} · Expected: {r.expected}</span>
+          <span className="pmark"><Icon name={r.ok ? 'check' : 'x'} />{r.ok ? 'Matches' : 'Differs'}</span>
+        </li>
+      ))}
     </ul>
   );
 }
@@ -120,7 +110,7 @@ export function PlaybookBar(p: PlaybookBarProps) {
         </div>
       )}
       {walk.done && !conclusion && <div className="pconc"><span>All steps answered — make your call in the decision panel.</span></div>}
-      {p.compare && p.expected && <Compare walk={walk} expected={p.expected} />}
+      {p.compare && p.expected && <PathRows rows={comparePath(walk, p.expected)} />}
     </section>
   );
 }
