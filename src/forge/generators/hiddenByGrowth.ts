@@ -92,8 +92,9 @@ export function generateHiddenByGrowth(spec: CaseSpec, rng: Rng): Omit<ForgedCas
   const judged = payments.filter((_, i) => monthOf[i]! <= 2);
   for (const g of ['visa', 'mastercard', 'other'] as const) {
     const pool = judged.filter((p) => group(p.brand) === g);
-    // Visa and Mastercard always end up over the 1.5% line, even on small sellers where rounding would land under it.
-    const count = Math.max(Math.round(pool.length * t.rates[g]), g === 'other' ? 0 : Math.floor(pool.length * RULES_V1.limits.visa) + 1);
+    // Small pools round to a rate under the limit, so Visa and Mastercard get at least enough disputes to land over their own limit.
+    const overLimit = g === 'other' ? 0 : Math.floor(pool.length * (g === 'visa' ? RULES_V1.limits.visa : RULES_V1.limits.mcEcm)) + 1;
+    const count = Math.max(Math.round(pool.length * t.rates[g]), overLimit);
     for (const p of pickDistinct(rng, pool, count, byPrice)) fileDispute(p, 20, 70);
   }
   for (const [mi, rate] of [[3, t.soFar.sep], [4, t.soFar.oct]] as const) {
