@@ -15,9 +15,11 @@ const GROUPS: { group: Group; name: string; limit: string }[] = [
   { group: 'other', name: 'Amex & others', limit: 'varies' },
 ];
 
+const thin = (group: Group, payments: number) => group !== 'other' && payments < RULES_V1.minBrandPayments;
+
 function Status({ group, rate, payments }: { group: Group; rate: number; payments: number }) {
   if (!Number.isFinite(rate)) return <span>—</span>;
-  if (group !== 'other' && payments < RULES_V1.minBrandPayments) return <span className="sev na"><Icon name="info" />NOT ENOUGH DATA</span>;
+  if (thin(group, payments)) return <span className="sev na"><Icon name="info" />NOT ENOUGH DATA</span>;
   if (group === 'mastercard' && rate >= limits.mcHecm) return <span className="sev crit"><Icon name="oct" />EXCESSIVE</span>;
   if ((group === 'mastercard' && rate >= limits.mcEcm) || (group === 'visa' && rate >= limits.visa)) return <span className="sev high"><Icon name="tri" />OVER</span>;
   if (group === 'other' && rate >= limits.visa) return <span className="sev med"><Icon name="tri" />REVIEW</span>;
@@ -52,7 +54,7 @@ export function BrandTable({ view, highlight, evidenceFor }: { view: CaseView; h
         <tbody>
           {rows.map(r => {
             const on = highlight.has(`brand:${r.group}`);
-            const hot = r.group === 'mastercard' && r.rate >= limits.mcHecm;
+            const hot = r.group === 'mastercard' && !thin(r.group, r.payments) && r.rate >= limits.mcHecm;
             return (
               <tr key={r.group} data-evidence-id={`brand:${r.group}`} className={on ? 'hl is-evidence' : undefined}>
                 <td>{r.name}</td>

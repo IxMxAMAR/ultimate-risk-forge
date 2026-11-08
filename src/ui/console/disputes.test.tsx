@@ -99,6 +99,38 @@ describe('Disputes tab', () => {
     const row = document.querySelector('tr[data-evidence-id="brand:mastercard"]') as HTMLElement;
     expect(within(row).getByText('NOT ENOUGH DATA')).toBeInTheDocument();
     expect(within(row).queryByText('EXCESSIVE')).not.toBeInTheDocument();
+    expect(within(row).getByText(pct(0.4))).not.toHaveStyle({ fontWeight: '600' });
+  });
+
+  it('shows no over-limit status for a Visa row below the minimum payments', () => {
+    const base = viewOf(EASY);
+    const stats = { ...base.stats, byBrandJudged: base.stats.byBrandJudged.map(r => (r.brand === 'visa' ? { ...r, payments: 5, disputes: 2, rate: 0.4 } : r)) };
+    render(<Harness view={{ ...base, stats }} />);
+    const row = document.querySelector('tr[data-evidence-id="brand:visa"]') as HTMLElement;
+    expect(within(row).getByText('NOT ENOUGH DATA')).toBeInTheDocument();
+    expect(within(row).queryByText('OVER')).not.toBeInTheDocument();
+  });
+
+  it('gives the REVIEW chip an icon', () => {
+    const base = viewOf(EASY);
+    const stats = { ...base.stats, byBrandJudged: base.stats.byBrandJudged.map(r => (r.brand === 'amex' ? { ...r, payments: 40, disputes: 4, rate: 0.1 } : r)) };
+    render(<Harness view={{ ...base, stats }} />);
+    expect(screen.getByText('REVIEW').querySelector('svg')).not.toBeNull();
+  });
+
+  it('says no sales are old enough to judge when nothing is judged', () => {
+    const base = viewOf(EASY);
+    const stats = { ...base.stats, judgedRate: NaN, judgedMonths: [] };
+    render(<Harness view={{ ...base, stats }} />);
+    expect(screen.getByText(/No sales are old enough to judge yet\./)).toBeInTheDocument();
+  });
+
+  it('does not say too new in Last 30 days mode', async () => {
+    render(<Harness view={viewOf(HARD)} />);
+    expect(screen.getAllByText(/too new/).length).toBeGreaterThan(0);
+    await userEvent.setup().click(screen.getByRole('tab', { name: 'Last 30 days' }));
+    const chart = screen.getByRole('img', { name: /bar chart/i }) as unknown as HTMLElement;
+    expect(within(chart).queryByText(/too new/)).not.toBeInTheDocument();
   });
 
   it('lists every dispute newest first', () => {
