@@ -3,6 +3,7 @@ import { addDays, daysBetween, isWithin } from '../../lib/dates';
 import { ceilTo, formatMoney, type Cents } from '../../lib/money';
 import type { Rng } from '../../lib/rng';
 import type { Brand, CaseSpec, Difficulty, Dispute, DisputeReason, EvidenceDoc, FlagKind, ForgedCase, Payment, Refund, SellerSize } from '../../domain/types';
+import { RULES_V1 } from '../../domain/ruleset';
 import { sellerName } from '../names';
 
 const ASOF = '2026-11-08';
@@ -29,9 +30,9 @@ interface Tuning {
   adCampaign: boolean;
 }
 const TUNING: Record<Difficulty, Tuning> = {
-  easy: { growth: 6, rates: { visa: 0.024, mastercard: 0.042, other: 0.025 }, soFar: { sep: 0.01, oct: 0.003 }, ageMonths: 3, adCampaign: false },
-  normal: { growth: 5, rates: { visa: 0.018, mastercard: 0.031, other: 0.025 }, soFar: { sep: 0.008, oct: 0.002 }, ageMonths: 4, adCampaign: false },
-  hard: { growth: 4, rates: { visa: 0.016, mastercard: 0.0305, other: 0.012 }, soFar: { sep: 0.006, oct: 0.002 }, ageMonths: 5, adCampaign: true },
+  easy: { growth: 6, rates: { visa: 0.027, mastercard: 0.042, other: 0.025 }, soFar: { sep: 0.008, oct: 0.002 }, ageMonths: 3, adCampaign: false },
+  normal: { growth: 5, rates: { visa: 0.018, mastercard: 0.031, other: 0.02 }, soFar: { sep: 0.006, oct: 0.0015 }, ageMonths: 4, adCampaign: false },
+  hard: { growth: 4, rates: { visa: 0.016, mastercard: 0.0305, other: 0.012 }, soFar: { sep: 0.004, oct: 0.001 }, ageMonths: 5, adCampaign: true },
 };
 
 const AD_DOCS: EvidenceDoc[] = [{ kind: 'ad-campaign-receipts', title: 'Seller file · ad receipts (2)', note: 'The growth matches a paid ad campaign the seller documented (receipts on file).' }];
@@ -91,7 +92,9 @@ export function generateHiddenByGrowth(spec: CaseSpec, rng: Rng): Omit<ForgedCas
   const judged = payments.filter((_, i) => monthOf[i]! <= 2);
   for (const g of ['visa', 'mastercard', 'other'] as const) {
     const pool = judged.filter((p) => group(p.brand) === g);
-    for (const p of pickDistinct(rng, pool, Math.ceil(pool.length * t.rates[g]), byPrice)) fileDispute(p, 20, 70);
+    // Visa and Mastercard always end up over the 1.5% line, even on small sellers where rounding would land under it.
+    const count = Math.max(Math.round(pool.length * t.rates[g]), g === 'other' ? 0 : Math.floor(pool.length * RULES_V1.limits.visa) + 1);
+    for (const p of pickDistinct(rng, pool, count, byPrice)) fileDispute(p, 20, 70);
   }
   for (const [mi, rate] of [[3, t.soFar.sep], [4, t.soFar.oct]] as const) {
     const pool = payments.filter((_, i) => monthOf[i] === mi);

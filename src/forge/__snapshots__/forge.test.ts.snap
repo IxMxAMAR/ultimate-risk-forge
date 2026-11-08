@@ -4,9 +4,9 @@ exports[`forgeCase > generator output is frozen 1`] = `
 {
   "disputes": {
     "first": "d-0001",
-    "last": "d-0034",
-    "n": 34,
-    "sum": 1511600,
+    "last": "d-0030",
+    "n": 30,
+    "sum": 1312800,
   },
   "groundTruth": {
     "acceptable": [
@@ -38,8 +38,8 @@ exports[`forgeCase > generator output is frozen 1`] = `
     "first": "r-0001",
     "last": "r-0023",
     "n": 23,
-    "sum": 533400,
+    "sum": 543100,
   },
-  "subject": "Northwind Club",
+  "subject": "Maple Collective",
 }
 `;
