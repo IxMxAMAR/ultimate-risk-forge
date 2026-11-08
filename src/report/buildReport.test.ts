@@ -175,6 +175,15 @@ describe('buildReport path taken', () => {
     expect(buildReport(v, { ...cs, decidedAt: NOW }, 'A', RULES_V1).pathConclusion).toBe('Partial release, keep $42,000');
   });
 
+  it('has no conclusion until the walk is done', () => {
+    const none = withAnswers({});
+    expect(buildReport(none.v, none.cs, 'A', RULES_V1).pathConclusion).toBeNull();
+    const partial = withAnswers({ jump: ['yes'], hidden: ['yes'] });
+    const r = buildReport(partial.v, partial.cs, 'A', RULES_V1);
+    expect(r.path).toHaveLength(2);
+    expect(r.pathConclusion).toBeNull();
+  });
+
   it('shows the stored rules version', () => {
     const { cs, v } = withAnswers(ANSWERS, { rulesVersion: '0.9' });
     const r = buildReport(v, cs, 'A', RULES_V1);

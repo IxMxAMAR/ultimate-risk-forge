@@ -18,12 +18,14 @@ const STATE = `(() => ({
   paper: document.querySelectorAll('.paper').length,
   dialog: document.querySelectorAll('[role="dialog"]').length,
   rows: document.querySelectorAll('[role="dialog"] .preview .prow').length,
+  answers: document.querySelectorAll('.pans').length,
   title: document.title,
 }))()`;
 const PAGES = [
   ['console', '#/case/VT-G24B-KD', s => s.cases >= 3 && s.flags >= 1],
   ['report', '#/case/VT-G24B-KD/report', s => s.paper > 0],
   ['forge', '#/forge', s => s.dialog > 0 && s.rows > 0],
+  ['console-step3', '#/case/VT-G24B-KD', s => s.cases >= 3 && s.flags >= 1 && s.answers >= 1, answerTwoSteps],
 ];
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -43,7 +45,19 @@ async function waitFor(check, ms, what) {
   throw new Error(`${what} not ready within ${ms / 1000} s`);
 }
 
-const freePort = () => new Promise((ok, fail) => {
+// Answers the first two playbook steps with their first answer, then waits for the Card brands step to be current.
+async function answerTwoSteps(page) {
+  const read = async expression => (await page.send('Runtime.evaluate', { expression, returnByValue: true })).result.value;
+  const current = () => read(`document.querySelector('.steps6 li.cur')?.textContent ?? ''`);
+  for (let i = 0; i < 2; i++) {
+    const before = await current();
+    await read(`document.querySelector('.pans').click()`);
+    await waitFor(async () => (await current()) !== before, 5_000, 'next playbook step');
+  }
+  await waitFor(async () => (await current()).includes('Card brands'), 5_000, 'Card brands step');
+}
+
+const freePort =() => new Promise((ok, fail) => {
   const srv = createServer();
   srv.on('error', fail);
   srv.listen(0, '127.0.0.1', () => { const { port } = srv.address(); srv.close(() => ok(port)); });
@@ -67,7 +81,7 @@ function connect(url) {
   return { opened, send, close: () => ws.close() };
 }
 
-async function shoot(name, hash, ready, w, h) {
+async function shoot(name, hash, ready, w, h, drive) {
   const out = resolve(`qa-shots/${name}-${w}x${h}.png`);
   const profile = mkdtempSync(join(tmpdir(), 'rf-qa-'));
   const port = await freePort();
@@ -88,6 +102,7 @@ async function shoot(name, hash, ready, w, h) {
     } catch (e) {
       throw new Error(`${e.message}; last state ${JSON.stringify(last)}`);
     }
+    if (drive) await drive(page);
     await sleep(300);
     const state = await evaluate();
     const shot = await page.send('Page.captureScreenshot', { format: 'png' });
@@ -106,7 +121,7 @@ try {
   await waitFor(up, 30_000, `preview on ${BASE}`);
   if (preview.exitCode !== null) throw new Error(`port ${PORT} was already in use`);
   mkdirSync('qa-shots', { recursive: true });
-  for (const [w, h] of SIZES) for (const [name, hash, ready] of PAGES) await shoot(name, hash, ready, w, h);
+  for (const [w, h] of SIZES) for (const [name, hash, ready, drive] of PAGES) await shoot(name, hash, ready, w, h, drive);
 } finally {
   kill(preview);
 }

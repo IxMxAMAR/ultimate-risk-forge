@@ -35,8 +35,9 @@ export function buildReport(v: CaseView, cs: CaseState, analyst: string, rules: 
   const keptPct = Math.round(d.keep / held * 100);
   const hidden = practiceOpen(cs);
   const rulesVersion = cs.rulesVersion ?? rules.version;
-  const path = v.playbook
-    ? walk(v.playbook, v, cs.playbook?.answers ?? {}).steps.filter(s => s.status === 'done').map(s => ({
+  const played = v.playbook ? walk(v.playbook, v, cs.playbook?.answers ?? {}) : null;
+  const path = played
+    ? played.steps.filter(s => s.status === 'done').map(s => ({
       question: s.step.question, answer: labelsOf(s.answers, s.chosen),
       sets: Object.entries(effectsOf(s.step, v, s.chosen)).flatMap(([kind, state]) => {
         const title = v.flags.find(f => f.id === kind)?.title;
@@ -74,7 +75,7 @@ export function buildReport(v: CaseView, cs: CaseState, analyst: string, rules: 
       { title: 'Money-at-risk workings', page: 3 },
       ...forged.docs.map(doc => ({ title: doc.title, page: 4 })),
     ],
-    path, pathConclusion: v.playbook && !hidden ? suggestion.summary : null,
+    path, pathConclusion: played?.done && !hidden ? suggestion.summary : null,
     consistency: {
       past, current: { ref: forged.displayId, keptPct },
       ...(past.length ? consistency({ action: d.action, keptPct }, past) : { median: NaN, inLine: true, range: [keptPct, keptPct] as [number, number] }),

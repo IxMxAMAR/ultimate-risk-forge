@@ -1,16 +1,19 @@
 import type { CaseView } from '../../app/derive';
 import { actionLabel } from '../../domain/labels';
 import type { Flag } from '../../domain/types';
-import { formatMoney, pct } from '../../lib/money';
+import { formatMoney, pct, type Cents } from '../../lib/money';
 import type { ReportModel } from '../../report/buildReport';
 import { Icon, type IconName } from '../Icon';
 
-export const SECTIONS = [
+// Section 4 is named once here; the paper heading uses the same title.
+export const keepTitle = (keep: Cents): string => (keep > 0 ? `Release the remaining ${formatMoney(keep)} when` : 'Conditions to watch');
+
+const sectionsOf = (keep: Cents) => [
   { id: 'rep-rec', no: '★', title: 'Recommendation' },
   { id: 'rep-1', no: '1', title: 'What we found' },
   { id: 'rep-2', no: '2', title: 'Money at risk' },
   { id: 'rep-3', no: '3', title: 'Path taken' },
-  { id: 'rep-4', no: '4', title: 'Release the rest when' },
+  { id: 'rep-4', no: '4', title: keepTitle(keep) },
   { id: 'rep-5', no: '5', title: 'Message to the seller' },
   { id: 'rep-6', no: '6', title: 'Fix for everyone' },
   { id: 'rep-7', no: '7', title: 'Audit trail' },
@@ -37,7 +40,7 @@ export function ReportRail({ v, report, concealed, hidden, active, onJump }: { v
       <div>
         <div className="label rail-h">In this report</div>
         <div className="toc">
-          {SECTIONS.map(s => (
+          {sectionsOf(report.money.keep).map(s => (
             <button key={s.id} className={active === s.id ? 'active' : undefined} aria-current={active === s.id ? 'true' : undefined} onClick={() => onJump(s.id)}>
               <span className="n">{s.no}</span>{s.title}
             </button>

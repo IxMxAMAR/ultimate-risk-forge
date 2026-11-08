@@ -5,6 +5,7 @@ import type { Flag } from '../../domain/types';
 import type { CaseState } from '../../persist/db';
 import type { ReportModel } from '../../report/buildReport';
 import { Icon } from '../Icon';
+import { keepTitle } from './ReportRail';
 
 const BADGE = { critical: { cls: 'crit', icon: 'oct', word: 'CRITICAL' }, high: { cls: 'high', icon: 'tri', word: 'HIGH' }, medium: { cls: 'med', icon: 'tri', word: 'MEDIUM' } } as const;
 
@@ -42,7 +43,6 @@ export function Paper({ v, cs, report, hidden }: { v: CaseView; cs: CaseState; r
     const ran = Math.max(0, audit.findIndex(a => a.what.startsWith('Checks ran')) + 1);
     audit.splice(ran, 0, { ts: audit[ran - 1]?.ts ?? cs.openedAt, who: 'Rules', what: `Rules ${header.rules} suggested: ${v.suggestion.summary}` });
   }
-  const keepLabel = money.keep > 0 ? `Release the remaining ${formatMoney(money.keep)} when` : 'Conditions to watch';
 
   return (
     <article className="paper" aria-label="Risk assessment report">
@@ -143,7 +143,7 @@ export function Paper({ v, cs, report, hidden }: { v: CaseView; cs: CaseState; r
 
       <div className="cols">
         <section className="sec" id="rep-4">
-          <h3><span className="no">4</span>{keepLabel}</h3>
+          <h3><span className="no">4</span>{keepTitle(money.keep)}</h3>
           <ul className="conds">
             {report.conditions.map(c => <li key={c}><span className="box" /><span>{c}</span></li>)}
           </ul>

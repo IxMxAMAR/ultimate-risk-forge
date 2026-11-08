@@ -281,6 +281,13 @@ describe('path taken', () => {
     expect(within(screen.getByRole('navigation', { name: 'Report contents' })).getByRole('button', { name: /3\s*Path taken/ })).toBeInTheDocument();
   });
 
+  it('names rail item 4 like the paper heading', async () => {
+    await open(c => ({ ...decided(c), decision: { action: 'approve', keep: 0, release: 6600000, reviewDate: '2026-11-08' } }));
+    const rail = within(screen.getByRole('navigation', { name: 'Report contents' }));
+    expect(rail.getByRole('button', { name: /4\s*Conditions to watch/ })).toBeInTheDocument();
+    expect(within(paperOf()).getByRole('heading', { name: /^4\s*Conditions to watch/ })).toBeInTheDocument();
+  });
+
   it('says so when no playbook step is answered', async () => {
     await open();
     expect(within(paperOf()).getByText('No playbook steps answered yet.')).toBeInTheDocument();
