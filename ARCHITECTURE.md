@@ -26,5 +26,7 @@ Cases and decisions are stored locally in IndexedDB; nothing leaves the browser.
 ## 8. Determinism & case codes
 Generators use only a seeded RNG, so a case code reproduces the same case. Generator v1 uses asOf 2026-11-08.
 
+The RNG is mulberry32 (`src/lib/rng.ts`); its sequence is frozen for generator v1. Case codes use Crockford base32 (`src/lib/base32.ts`) with a weighted mod-31 check character; entry is normalized (uppercase, spaces and `-` stripped, I/L read as 1, O as 0). Money is integer cents and dates are UTC ISO strings (`src/lib/money.ts`, `src/lib/dates.ts`).
+
 ## 9. Testing & QA
 `npm test` runs the full suite, `npm run typecheck` checks types, and `npm run build` produces the static bundle.
