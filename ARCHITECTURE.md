@@ -16,6 +16,8 @@ Pure types and logic for sellers, transactions, evidence and cases. Money is int
 
 Types live in `src/domain/types.ts` (case specs, payments, disputes, refunds, holds, flags, decisions, ground truth, forged cases). The thresholds every check uses are one frozen ruleset, `RULES_V1` in `src/domain/ruleset.ts` (network limits, Mastercard fine schedules, hold buffer and rounding, young-account and escalation cutoffs).
 
+The forge (`src/forge`) turns a case code into a full case: `forgeCase(code)` decodes it, picks the generator and seeds it with the case seed. Available types are Hidden by growth and Surprise (Surprise draws a concrete available type from the seed XOR 0x9E3779B9 and is flagged `surprise`); other types throw "This kind of case is coming soon". The Hidden by growth generator (`generators/hiddenByGrowth.ts`) builds card payments for Jun–Oct 2026 (October volume 300 / 2,000 / 20,000 by seller size, September = October ÷ growth of 6 / 5 / 4 for easy / normal / hard, earlier months flat-ish), brand-group dispute rates tuned per difficulty on the judged months (Jun–Aug) with low so-far rates on Sep/Oct, refunds on about 0.6% of payments (never on disputed ones), a fixed hold of 22.5% of the last 30 days rounded up to $1,000, and the ground truth. Hard cases add an ad-campaign receipts document and treat the young-account flag as a look-alike. Seller names come from `names.ts`; `starters.ts` lists the three starter codes (easy, normal, hard).
+
 ## 5. Checks & rules
 Deterministic checks over a case that produce severity-ranked flags with supporting evidence.
 

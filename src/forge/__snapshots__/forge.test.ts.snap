@@ -1,0 +1,45 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`forgeCase > generator output is frozen 1`] = `
+{
+  "disputes": {
+    "first": "d-0001",
+    "last": "d-0034",
+    "n": 34,
+    "sum": 1511600,
+  },
+  "groundTruth": {
+    "acceptable": [
+      "deny",
+      "partial-release",
+    ],
+    "adjacent": [
+      "hold-payouts",
+      "escalate",
+    ],
+    "lookAlikes": [
+      "young-account-fast-growth",
+    ],
+    "planted": [
+      "rate-hidden-by-growth",
+      "mc-over-limit",
+      "visa-over-limit",
+      "refunds-low-disputes-high",
+    ],
+  },
+  "hold": 6600000,
+  "payments": {
+    "first": "p-000001",
+    "last": "p-003775",
+    "n": 3775,
+    "sum": 76300800,
+  },
+  "refunds": {
+    "first": "r-0001",
+    "last": "r-0023",
+    "n": 23,
+    "sum": 533400,
+  },
+  "subject": "Northwind Club",
+}
+`;
