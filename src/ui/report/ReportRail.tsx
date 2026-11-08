@@ -22,7 +22,7 @@ const chipOf = (f: Flag): readonly [string, string] => (f.state === 'dismissed' 
 const attachmentIcon = (title: string): IconName => (title.startsWith('Chart') ? 'chart' : title.startsWith('Table') ? 'table' : title.startsWith('Money') ? 'calc' : 'clip');
 
 // Left rail of the report page: contents, case facts, flags, attachments and the consistency check (ARCHITECTURE.md §6).
-export function ReportRail({ v, report, active, onJump }: { v: CaseView; report: ReportModel; active: string; onJump: (id: string) => void }) {
+export function ReportRail({ v, report, concealed, active, onJump }: { v: CaseView; report: ReportModel; concealed: boolean; active: string; onJump: (id: string) => void }) {
   const { forged, stats } = v;
   const { consistency: c } = report;
   const trigger = forged.trigger.kind;
@@ -75,6 +75,7 @@ export function ReportRail({ v, report, active, onJump }: { v: CaseView; report:
       </div>
 
       <div className="panel grow">
+        {concealed ? <span className="label">Revealed after you decide</span> : <>
         <span className="label">Same facts, same answer</span>
         <div className="past-h">{c.past.length ? 'Earlier cases of this kind:' : 'No earlier cases of this kind yet.'}</div>
         {rows.map((r, i) => {
@@ -92,6 +93,7 @@ export function ReportRail({ v, report, active, onJump }: { v: CaseView; report:
             <span>{c.inLine ? 'In line with past decisions' : 'Different from past decisions'} ({c.range[0]}–{c.range[1]}%).</span>
           </div>
         )}
+        </>}
       </div>
     </nav>
   );

@@ -16,11 +16,13 @@ export function ReportPage() {
   const cs = activeOf(state);
   const [active, setActive] = useState('rep-rec');
   const hidden = cs !== null && cs.practice && cs.decidedAt === null;
+  const concealed = cs !== null && view !== null && view.forged.surprise && cs.decidedAt === null;
   const report = useMemo(() => {
     if (!cs || !view || (hidden && cs.decision === null)) return null;
     const built = buildReport(view, cs, state.analyst, RULES_V1);
-    return hidden ? { ...built, recommendation: { ...built.recommendation, override: null } } : built;
-  }, [cs, view, hidden, state.analyst]);
+    const shown = concealed ? { ...built, header: { ...built.header, title: `Unknown case — ${view.forged.subject.name}` } } : built;
+    return hidden ? { ...shown, recommendation: { ...shown.recommendation, override: null } } : shown;
+  }, [cs, view, hidden, concealed, state.analyst]);
 
   if (!cs || !view || !report) {
     return (
@@ -38,7 +40,7 @@ export function ReportPage() {
 
   return (
     <div className="main rpt">
-      <ReportRail v={view} report={report} active={active} onJump={jump} />
+      <ReportRail v={view} report={report} concealed={concealed} active={active} onJump={jump} />
       <main className="desk"><Paper v={view} cs={cs} report={report} hidden={hidden} /></main>
       <SidePanel v={view} cs={cs} report={report} hidden={hidden} />
     </div>

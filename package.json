@@ -8,7 +8,9 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "typecheck": "tsc -b --noEmit"
+    "typecheck": "tsc -b --noEmit",
+    "qa:shots": "vite build && node scripts/qa-shots.mjs",
+    "check:offline": "vite build && node scripts/check-offline.mjs"
   },
   "dependencies": {
     "@fontsource/fira-code": "^5.3.0",

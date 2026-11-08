@@ -1,9 +1,11 @@
 import { createContext, useContext, useEffect, useMemo, useReducer, useRef, type Dispatch, type ReactNode } from 'react';
 import { RULES_V1 } from '../domain/ruleset';
 import { normalizeCode } from '../lib/base32';
+import { STARTER_CODES } from '../forge/starters';
 import { openStore, type CaseState, type Store } from '../persist/db';
 import { deriveCase, type CaseView } from './derive';
-import { parseRoute } from './routes';
+import { starterCases } from './opening';
+import { caseHash, parseRoute } from './routes';
 import { reducer, type AppAction, type AppState } from './state';
 
 interface AppContextValue { state: AppState; dispatch: Dispatch<AppAction>; view: CaseView | null }
@@ -47,12 +49,20 @@ export function AppProvider({ store: injected, children }: { store?: Store; chil
     const onHash = () => follow(latest.current);
     void (async () => {
       const s = injected ?? await openStore();
-      const [cases, settings] = await Promise.all([s.all(), s.settings()]);
+      const [stored, settings] = await Promise.all([s.all(), s.settings()]);
+      const firstRun = stored.length === 0;
+      const cases = firstRun ? starterCases(Date.now()) : stored;
+      if (firstRun) await Promise.all(cases.map(c => s.put(c)));
       if (!live) return;
       store.current = s;
       saved.current = new Map(cases.map(c => [c.code, c]));
       dispatch({ type: 'loaded', cases, analyst: settings.analystName, persistent: s.persistent });
       follow(cases);
+      const named = parseRoute(window.location.hash);
+      if (firstRun && !cases.some(c => named.code !== null && normalizeCode(c.code) === normalizeCode(named.code))) {
+        dispatch({ type: 'open-case', code: STARTER_CODES[2] });
+        if (!named.forge) window.location.hash = caseHash(STARTER_CODES[2]);
+      }
     })();
     window.addEventListener('hashchange', onHash);
     return () => { live = false; window.removeEventListener('hashchange', onHash); };
