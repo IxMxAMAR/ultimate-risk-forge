@@ -37,7 +37,7 @@ export function CaseList() {
   const code = normalizeCode(q);
   const shown = rows.filter(({ cs, view }) =>
     inFilter(filter, cs) &&
-    (q === '' || view.forged.displayId.toLowerCase().includes(q) || view.forged.subject.name.toLowerCase().includes(q) || normalizeCode(cs.code).includes(code)));
+    (q === '' || view.forged.displayId.toLowerCase().includes(q) || view.forged.subject.name.toLowerCase().includes(q) || (code !== '' && normalizeCode(cs.code).includes(code))));
   return (
     <>
       <div className="rail-head"><span className="label">Cases</span><Button variant="primary" small icon="plus" onClick={() => dispatch({ type: 'forge-open', open: true })}>New case</Button></div>
@@ -53,9 +53,9 @@ export function CaseList() {
         const isActive = cs.code === active?.code;
         return (
           <button key={cs.code} className={`case${isActive ? ' active' : ''}${cs.decidedAt ? ' done' : ''}`} aria-current={isActive ? 'true' : undefined} onClick={() => { window.location.hash = caseHash(cs.code); }}>
-            <div className="r1"><span className="num">{view.forged.displayId}</span>{level && <SeverityChip level={level} />}</div>
-            <div className="t">{caseTitle(view, cs.decidedAt !== null)}</div>
-            <div className="r3"><span>{view.forged.subject.name}</span><span className="num">{formatMoney(view.forged.trigger.heldAmount)}</span></div>
+            <span className="r1"><span className="num">{view.forged.displayId}</span>{level && <SeverityChip level={level} />}</span>
+            <span className="t">{caseTitle(view, cs.decidedAt !== null)}</span>
+            <span className="r3"><span>{view.forged.subject.name}</span><span className="num">{formatMoney(view.forged.trigger.heldAmount)}</span></span>
           </button>
         );
       })}

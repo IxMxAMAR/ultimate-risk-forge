@@ -1,6 +1,6 @@
-import { act, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../../app/App';
 import { AppProvider, useApp } from '../../app/AppContext';
 import { parseRoute } from '../../app/routes';
@@ -66,7 +66,7 @@ describe('console shell', () => {
     await user.click(await screen.findByText(f.displayId));
     expect(window.location.hash).toBe(`#/case/${f.code}`);
     const header = await screen.findByRole('region', { name: 'Case summary' });
-    expect(within(header).getByText(f.subject.name)).toBeInTheDocument();
+    expect(await within(header).findByText(f.subject.name)).toBeInTheDocument();
     expect(within(header).getByText('Money at stake').nextSibling).toHaveTextContent(formatMoney(f.trigger.heldAmount));
     expect(within(header).getByText('New')).toBeInTheDocument();
   });
@@ -75,6 +75,7 @@ describe('console shell', () => {
     window.location.hash = `#/case/${STARTER_CODES[1]}`;
     render(<App store={await seededStore()} />);
     const header = await screen.findByRole('region', { name: 'Case summary' });
+    await within(header).findByText('Growth vs prior month');
     const v = deriveCase(newCaseState(STARTER_CODES[1], false, ''), RULES_V1);
     expect(within(header).getByText('Growth vs prior month').nextSibling).toHaveTextContent('5.0×');
     expect(within(header).getByText('Sales, last 30 days').nextSibling).toHaveTextContent(formatMoney(v.stats.last30Sales));
@@ -119,20 +120,90 @@ describe('console shell', () => {
     expect(await screen.findByText("Storage is blocked — this session won't be saved.")).toBeInTheDocument();
   });
 
-  it('saves a changed case 300 ms after the change', async () => {
-    const store = await seededStore();
-    window.location.hash = `#/case/${STARTER_CODES[0]}`;
-    function Edit() {
-      const { dispatch } = useApp();
-      return <button onClick={() => dispatch({ type: 'set-seller-message', text: 'hello' })}>edit</button>;
-    }
+  it('ignores a search of only separators', async () => {
     const user = userEvent.setup();
-    render(<AppProvider store={store}><Edit /></AppProvider>);
-    await waitFor(() => expect(window.location.hash).toContain(STARTER_CODES[0]));
-    await act(async () => { await new Promise(r => setTimeout(r, 50)); });
-    await user.click(screen.getByText('edit'));
-    expect((await store.all()).every(c => c.sellerMessage === null)).toBe(true);
-    await waitFor(async () => expect((await store.all()).find(c => c.code === STARTER_CODES[0])?.sellerMessage).toBe('hello'), { timeout: 1500 });
+    render(<App store={await seededStore()} />);
+    await screen.findByText(forgeCase(STARTER_CODES[0]).displayId);
+    await user.type(screen.getByRole('searchbox', { name: 'Search cases' }), '--');
+    expect(document.querySelectorAll('button.case')).toHaveLength(0);
+  });
+
+  it('opens another case when the hash changes after mount', async () => {
+    window.location.hash = `#/case/${STARTER_CODES[0]}`;
+    render(<App store={await seededStore()} />);
+    const header = await screen.findByRole('region', { name: 'Case summary' });
+    await within(header).findByText(forgeCase(STARTER_CODES[0]).subject.name);
+    window.location.hash = `#/case/${STARTER_CODES[2]}`;
+    expect(await within(header).findByText(forgeCase(STARTER_CODES[2]).subject.name)).toBeInTheDocument();
+  });
+
+  it('keeps the selected flag when the hash moves to the report of the same case', async () => {
+    const user = userEvent.setup();
+    window.location.hash = `#/case/${STARTER_CODES[0]}`;
+    function Probe() {
+      const { state, dispatch } = useApp();
+      return <><button onClick={() => dispatch({ type: 'select-flag', id: 'f1' })}>select</button><span data-testid="p">{`${state.view}|${state.selectedFlagId}`}</span></>;
+    }
+    render(<AppProvider store={await seededStore()}><Probe /></AppProvider>);
+    await waitFor(() => expect(screen.getByTestId('p')).toHaveTextContent('console|null'));
+    await user.click(screen.getByText('select'));
+    window.location.hash = `#/case/${STARTER_CODES[0]}/report`;
+    await waitFor(() => expect(screen.getByTestId('p')).toHaveTextContent('report|f1'));
+  });
+});
+
+describe('saving', () => {
+  const [A, B] = [STARTER_CODES[0], STARTER_CODES[1]];
+  function Edit() {
+    const { state, dispatch } = useApp();
+    return (
+      <>
+        <span data-testid="active">{state.activeCode}</span>
+        <button onClick={() => dispatch({ type: 'set-seller-message', text: 'one' })}>one</button>
+        <button onClick={() => dispatch({ type: 'set-seller-message', text: 'two' })}>two</button>
+        <button onClick={() => dispatch({ type: 'open-case', code: B })}>open B</button>
+      </>
+    );
+  }
+  async function setup() {
+    const real = await seededStore();
+    const put = vi.fn(real.put);
+    window.location.hash = `#/case/${A}`;
+    const view = render(<AppProvider store={{ ...real, put }}><Edit /></AppProvider>);
+    await waitFor(() => expect(screen.getByTestId('active')).toHaveTextContent(A));
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    return { put, view };
+  }
+  afterEach(() => vi.useRealTimers());
+
+  it('writes once, with the latest state, for rapid edits to one case', async () => {
+    const { put } = await setup();
+    fireEvent.click(screen.getByText('one'));
+    act(() => { vi.advanceTimersByTime(200); });
+    fireEvent.click(screen.getByText('two'));
+    act(() => { vi.advanceTimersByTime(299); });
+    expect(put).not.toHaveBeenCalled();
+    act(() => { vi.advanceTimersByTime(1); });
+    expect(put).toHaveBeenCalledTimes(1);
+    expect(put.mock.calls[0]![0]).toMatchObject({ code: A, sellerMessage: 'two' });
+  });
+
+  it('writes every case changed within one window', async () => {
+    const { put } = await setup();
+    fireEvent.click(screen.getByText('one'));
+    fireEvent.click(screen.getByText('open B'));
+    fireEvent.click(screen.getByText('two'));
+    act(() => { vi.advanceTimersByTime(300); });
+    expect(put.mock.calls.map(c => [c[0].code, c[0].sellerMessage]).sort()).toEqual([[B, 'two'], [A, 'one']]);
+  });
+
+  it('flushes pending writes on unmount', async () => {
+    const { put, view } = await setup();
+    fireEvent.click(screen.getByText('one'));
+    expect(put).not.toHaveBeenCalled();
+    view.unmount();
+    expect(put).toHaveBeenCalledTimes(1);
+    expect(put.mock.calls[0]![0]).toMatchObject({ code: A, sellerMessage: 'one' });
   });
 });
 

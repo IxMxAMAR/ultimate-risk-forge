@@ -40,7 +40,7 @@
 .case:hover{background:var(--card)}
 .case.active{background:var(--accent-soft);border-color:rgba(59,130,246,.45)}
 .case .r1{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--fg3)}
-.case .t{font-weight:500;margin:3px 0 2px;color:var(--fg)}
+.case .t{display:block;font-weight:500;margin:3px 0 2px;color:var(--fg)}
 .case .r3{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--fg3)}
 .case.done .t{color:var(--fg3)}
 .sev{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;letter-spacing:.4px;padding:2px 7px;border-radius:999px;white-space:nowrap}

@@ -32,6 +32,7 @@ export function AppProvider({ store: injected, children }: { store?: Store; chil
   const saved = useRef(new Map<string, CaseState>());
   const dirty = useRef(new Map<string, CaseState>());
   const latest = useRef<CaseState[]>([]);
+  const activeCode = useRef<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useEffect(() => {
@@ -40,7 +41,7 @@ export function AppProvider({ store: injected, children }: { store?: Store; chil
       const route = parseRoute(window.location.hash);
       if (route.forge) dispatch({ type: 'forge-open', open: true });
       const target = route.code === null ? undefined : cases.find(c => normalizeCode(c.code) === normalizeCode(route.code!));
-      if (target) dispatch({ type: 'open-case', code: target.code });
+      if (target && target.code !== activeCode.current) dispatch({ type: 'open-case', code: target.code });
       if (target || route.code === null) dispatch({ type: 'set-view', view: route.page });
     };
     const onHash = () => follow(latest.current);
@@ -59,6 +60,10 @@ export function AppProvider({ store: injected, children }: { store?: Store; chil
 
   useEffect(() => {
     latest.current = state.cases;
+    activeCode.current = state.activeCode;
+  }, [state.cases, state.activeCode]);
+
+  useEffect(() => {
     if (!store.current) return;
     for (const c of state.cases) {
       if (saved.current.get(c.code) !== c) { saved.current.set(c.code, c); dirty.current.set(c.code, c); }
