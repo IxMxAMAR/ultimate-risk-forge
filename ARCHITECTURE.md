@@ -40,6 +40,8 @@ Report model (`src/report/buildReport.ts`, wording in `src/report/templates.ts`)
 ## 6. UI
 Console view for working a case, a report view, and the Forge modal. Severity is always icon, word and color. Keyboard shortcuts drive flag review.
 
+Console shell: `AppProvider` (`src/app/AppContext.tsx`) holds the reducer state, loads the saved cases and the analyst name when the app opens, and writes each changed case back 300 ms after the last change; if storage is blocked a top-bar notice says the session won't be saved. The page follows the URL hash (`src/app/routes.ts`): `#/`, `#/case/<code>`, `#/case/<code>/report`, `#/forge`; a code that matches no saved case is ignored. The top bar has the brand, a case search (display id, seller name or code), a read-only Practice mode status that shows the open case's flag, and the analyst's initials. The case header shows the seller, the held amount, account age, last-30-day sales, growth against the prior month and a status (New, In progress, Decided). The left rail lists cases newest first with Open, Decided and All filters, each row showing display id, severity chip, title and held amount, then the case's data tabs (Disputes only for now, with its dispute count and its unresolved flag count). Icons come from one SVG sprite; severity chips pair icon, word and color.
+
 ## 7. Persistence
 Cases and decisions are stored locally in IndexedDB; nothing leaves the browser.
 
