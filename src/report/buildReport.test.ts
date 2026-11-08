@@ -108,6 +108,9 @@ describe('buildReport', () => {
 
   it('varies the letter for deny and approve', () => {
     expect(sellerMessage(view, suggestion)).toContain('keeping the full $42,000');
-    expect(sellerMessage(view, { action: 'approve', keep: 0, release: 4200000, reviewDate: '2026-11-08' })).toContain('releasing all of it');
+    const approve = sellerMessage(view, { action: 'approve', keep: 0, release: 4200000, reviewDate: '2026-11-08' });
+    expect(approve).toContain('releasing all of it');
+    expect(approve.endsWith('— Risk Operations')).toBe(true);
+    expect(approve).not.toContain("We'll look again");
   });
 });

@@ -59,6 +59,6 @@ export function letter(v: CaseView, d: Decision, rules: Ruleset): string {
   const why = d.action === 'approve'
     ? "Why: your dispute rates are within the card networks' limits."
     : `Why: on your ${monthSpan(stats.judgedMonths)} sales, ${pct(stats.judgedRate)} of payments were disputed${brand ? ` (${pct(brand.rate)} on ${capitalise(brand.brand)})` : ''}. That's above the card networks' limits.${topReason(v) === 'fraudulent' ? ' Most disputes are marked "fraudulent", so turning on 3D Secure under Settings → Risk should bring that down quickly.' : ''}`;
-  const next = d.action === 'approve' ? '' : `We'll look again on ${formatDay(d.reviewDate)}. — Risk Operations`;
+  const next = d.action === 'approve' ? '— Risk Operations' : `We'll look again on ${formatDay(d.reviewDate)}. — Risk Operations`;
   return [`Hi ${forged.subject.name.split(' ')[0]} team,`, middle, why, next].filter(Boolean).join('\n\n');
 }
