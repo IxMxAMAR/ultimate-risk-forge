@@ -70,6 +70,15 @@ describe('hidden-by-growth playbook', () => {
     it('denies when the hold equals the worst case', () => {
       expect(pb.ending(withFlags(risky, 1000000, 1000000), RULES_V1)).toMatchObject({ action: 'deny', keep: 1000000, release: 0 });
     });
+    it('says the hold to keep, not the worst case alone, in the Money step and the deny basis', () => {
+      const band = withFlags(risky, 900000, 860100);
+      const money = pb.steps.find(s => s.id === 'money')!;
+      const text = 'Held $9,000 vs $10,000 to keep (worst case $8,601 + buffer)';
+      expect(money.answers(band).map(a => a.detail)).toEqual([text, text]);
+      expect(money.lookAt(band)[0]!.label).toBe(text);
+      expect(money.expected(band)).toEqual(['short']);
+      expect(pb.ending(band, RULES_V1)).toMatchObject({ action: 'deny', basis: 'Confirmed risk; the hold does not cover the worst case plus buffer' });
+    });
     it('expects Falls short when the hold is not above the hold to keep', () => {
       const money = pb.steps.find(s => s.id === 'money')!;
       expect(money.expected(withFlags(risky, 5000000, 1000000))).toEqual(['covers']);

@@ -93,12 +93,15 @@ const explained: Step = {
   expected: v => [v.forged.docs.some(d => d.kind === 'ad-campaign-receipts') ? 'documented' : 'no'],
 };
 
+const heldVsKeep = (v: CaseView): string =>
+  `Held ${formatMoney(v.forged.trigger.heldAmount)} vs ${formatMoney(holdToKeep(v.exposure.high, RULES_V1))} to keep (worst case ${formatMoney(v.exposure.high)} + buffer)`;
+
 const money: Step = {
   id: 'money', title: 'Money', question: 'Does the hold cover the money at risk?',
   why: 'The hold should cover what could still be lost: open disputes, disputes still to come, fees and fines.',
-  lookAt: v => [{ label: `Held ${formatMoney(v.forged.trigger.heldAmount)} · worst case ${formatMoney(v.exposure.high)}`, tab: 'disputes', ids: ['decision-hold'] }],
+  lookAt: v => [{ label: heldVsKeep(v), tab: 'disputes', ids: ['decision-hold'] }],
   answers: v => {
-    const detail = `Held ${formatMoney(v.forged.trigger.heldAmount)} vs worst case ${formatMoney(v.exposure.high)}`;
+    const detail = heldVsKeep(v);
     return [{ id: 'covers', label: 'Covers it', detail }, { id: 'short', label: 'Falls short', detail }];
   },
   expected: v => [v.forged.trigger.heldAmount > holdToKeep(v.exposure.high, RULES_V1) ? 'covers' : 'short'],
@@ -113,7 +116,7 @@ function ending(v: Omit<CaseView, 'suggestion'>, rules: Ruleset): Suggestion {
   if (held > keep) {
     return { action: 'partial-release', keep, release: held - keep, reviewDate: reviewDateFrom(asOf), basis: 'Confirmed risk; the hold is more than the worst case', summary: `Partial release, keep ${formatMoney(keep)}` };
   }
-  return { action: 'deny', keep: held, release: 0, reviewDate: reviewDateFrom(asOf), basis: 'Confirmed risk; the hold does not cover the worst case', summary: `Deny, keep all ${formatMoney(held)}` };
+  return { action: 'deny', keep: held, release: 0, reviewDate: reviewDateFrom(asOf), basis: 'Confirmed risk; the hold does not cover the worst case plus buffer', summary: `Deny, keep all ${formatMoney(held)}` };
 }
 
 // Six questions walk the five checks to a decision (ARCHITECTURE.md §5).
