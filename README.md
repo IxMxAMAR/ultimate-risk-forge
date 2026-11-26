@@ -1,6 +1,14 @@
 # Risk Forge
 
-Risk Forge is an offline browser app for practising risk assessment on fictional seller cases: forge a case, review the evidence, flag the issues, and write the report. Everything stays on your computer. To run it, use `npm install` and then `npm run dev`.
+Risk Forge is an offline browser app for practising risk assessment on fictional seller cases: forge a case, review the evidence, flag the issues, and write the report. Everything stays on your computer.
+
+**Try it:** https://ixmxamar.github.io/ultimate-risk-forge/ (no sign-up, nothing is sent anywhere). To run it locally, use `npm install` and then `npm run dev`.
+
+**Status:** one case type is playable end to end, *Hidden by growth*: a seller asks to release a hold early while fast sales growth hides its real dispute rate. The Forge lists the other case types (forged statements, refund rings, card testing, sanctions screening and more) as coming soon.
+
+![Analyst console with the playbook at step 3](screenshots/console.png)
+
+![Risk assessment report with the recommendation](screenshots/report.png)
 
 ## Scripts
 
